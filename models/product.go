@@ -12,6 +12,7 @@ type Cart struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 	Products  []CartProduct  `json:"products"`
+	Token     string         `json:"token"`
 }
 
 type CartProduct struct {
@@ -23,7 +24,6 @@ type CartProduct struct {
 	Product   Product        `json:"product"`
 	Count     uint           `json:"count"`
 	CartId    uint           `json:"cart_id"`
-	Token     string
 }
 
 type Product struct {
@@ -47,4 +47,37 @@ type Category struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 	Name      string         `json:"name"`
+}
+
+func (cart *Cart) GetProduct(productId uint) *CartProduct {
+	if cart == nil {
+		return nil
+	}
+	if len(cart.Products) > 0 {
+		for _, el := range cart.Products {
+			if el.Id == productId {
+				return &el
+			}
+		}
+	}
+	return nil
+}
+
+func (cart *Cart) SetProduct(product CartProduct) {
+	for i, el := range cart.Products {
+		if el.Id == product.Id {
+			ps := &cart.Products
+			(*ps)[i] = product
+		}
+	}
+}
+
+func (cart *Cart) CartTotal() (total uint) {
+	if cart == nil {
+		return 0
+	}
+	for _, el := range cart.Products {
+		total += el.Count * el.Product.Price
+	}
+	return total
 }

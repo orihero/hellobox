@@ -17,4 +17,5 @@ type ContactInfo struct {
 	EmailUrl     string         `json:"email_url"`
 	ContactInfo  string         `json:"contact_info"`
 	PhoneNumber  string         `json:"phone_number"`
+	SiteUrl      string         `json:"site_url"`
 }

@@ -43,3 +43,10 @@ func DeleteProduct(id uint) {
 	defer CloseDatabase(connection)
 	connection.Delete(&models.Product{Id: id})
 }
+
+//  func GetProductsbyPartner (id models.Partner){
+// 	connection := GetDatabase()
+// 	var partner models.Partner
+// 	connection.Where(&models.Partner{Id: id}).First(&partner)
+// 	return partner
+//  }

@@ -5,10 +5,12 @@ import (
 	"hellobox/database"
 	"hellobox/env"
 	"hellobox/models"
+	"io/ioutil"
 	"strconv"
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	uuid "github.com/nu7hatch/gouuid"
 )
 
 func sendMenu(id int64) {
@@ -48,7 +50,7 @@ func hasContact(update tgbotapi.Update) bool {
 	return false
 }
 
-func showList(id int64) {
+func showCategories(id int64) {
 	categories := database.GetCategories()
 	markup := tgbotapi.NewInlineKeyboardMarkup()
 	for i := 1; i < len(categories); i += 2 {
@@ -70,27 +72,81 @@ func showProducts(chatId int64, categoryId uint, messageId int) {
 			tgbotapi.NewInlineKeyboardButtonData(el.Name, fmt.Sprintf("%s#%d", "product", el.Id)),
 		))
 	}
-	message := tgbotapi.NewEditMessageTextAndMarkup(chatId, messageId, "Buyurtmani tanlang!", markup)
+	message := tgbotapi.NewMessage(chatId, "Buyurtmani tanlang!")
+	message.ReplyMarkup = markup
 	env.Bot.Send(message)
+}
+
+func showPartner(chatId int64, messageId int) {
+	partner := database.GetPartner()
+	markup := tgbotapi.NewInlineKeyboardMarkup()
+	for i := 1; i < len(partner); i += 2 {
+		markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(partner[i-1].Name, fmt.Sprintf("%s#%d", "partner", partner[i-1].Id)),
+			tgbotapi.NewInlineKeyboardButtonData(partner[i].Name, fmt.Sprintf("%s#%d", "partner", partner[i].Id))))
+	}
+	message := tgbotapi.NewMessage(chatId, "Biz bilan hamkorlar")
+	message.ReplyMarkup = markup
+	env.Bot.Send(message)
+}
+
+func showSettings(chatId int64, messageId int) {
+	settings := database.GetSettings()
+	for i := 1; i < len(settings); i += 2 {
+	}
+	message := tgbotapi.NewMessage(chatId, "Biz haqimizda http://www.telegram.org/helloboxuz")
+	env.Bot.Send(message)
+}
+
+func incrementProduct(update tgbotapi.Update, productId uint) {
+	user := models.User{UserId: update.CallbackQuery.From.ID}
+	user = database.FilterUser(user)
+	product := user.Cart.GetProduct(productId)
+	if product != nil {
+		product.Count++
+		user.Cart.SetProduct(*product)
+	} else {
+		if user.Cart == nil || len(user.Cart.Products) == 0 {
+			u, _ := uuid.NewV4()
+			user.Cart = &models.Cart{Token: u.String()}
+		}
+		realProduct := database.GetSingleProduct(productId)
+		user.Cart.Products = append(user.Cart.Products, models.CartProduct{ProductId: realProduct.Id, Product: realProduct, CartId: user.CartId, Count: 1})
+	}
+	database.EditUser(user)
+	// showProductDetails(user.ChatId, productId)
+}
+
+func decrementProduct(update tgbotapi.Update, productId uint) {
+	user := models.User{UserId: update.CallbackQuery.From.ID}
+	user = database.FilterUser(user)
+	product := user.Cart.GetProduct(productId)
+	if product != nil {
+		product.Count--
+		user.Cart.SetProduct(*product)
+	}
 }
 
 func showProductDetails(chatId int64, productId uint, messageId int) {
 	product := database.GetSingleProduct(productId)
+	user := models.User{ChatId: chatId}
+	user = database.FilterUser(user)
+
 	markup := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("🛒%d", product.Price), "cart"),
+			tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("🛒%d", user.Cart.CartTotal()), "cart"),
 		),
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("-", "like"),
-			tgbotapi.NewInlineKeyboardButtonData("1", "like"),
-			tgbotapi.NewInlineKeyboardButtonData("+", "like"),
+			tgbotapi.NewInlineKeyboardButtonData("➖", fmt.Sprintf("minus#%d", productId)),
+			tgbotapi.NewInlineKeyboardButtonData("0", "none"),
+			tgbotapi.NewInlineKeyboardButtonData("➕", fmt.Sprintf("plus#%d", productId)),
 		),
 
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Назад", fmt.Sprintf("product-back#%d", product.CategoryId)),
 		),
 	)
-	text := fmt.Sprintf("***%s***\n```Цена:%d```\n%s", product.Name, product.Price, product.Description)
+	text := fmt.Sprintf("***%s***\nЦена:%d\n%s", product.Name, product.Price, product.Description)
 	file := tgbotapi.NewPhoto(chatId, tgbotapi.FileURL(product.ImageUrl))
 	file.ParseMode = "markdown"
 	file.Caption = text
@@ -101,7 +157,11 @@ func showProductDetails(chatId int64, productId uint, messageId int) {
 func SendNews(news models.News) {
 	users := database.GetUsers()
 	for _, el := range users {
-		file := tgbotapi.NewPhoto(el.ChatId, tgbotapi.FileURL(news.ImageUrl))
+		//TODO FIX
+		str := strings.Split(news.ImageUrl, "/")
+		last := str[len(str)-1]
+		body, _ := ioutil.ReadFile(fmt.Sprintf("./public/uploads/%s", last))
+		file := tgbotapi.NewPhoto(el.ChatId, tgbotapi.FileBytes{Bytes: body})
 		file.Caption = news.Description
 		env.Bot.Send(file)
 	}
@@ -127,23 +187,38 @@ func HandleBot() {
 			println(update.CallbackQuery.Data)
 			s := strings.Split(update.CallbackQuery.Data, "#")
 			switch s[0] {
+			case "minus":
+				productId, err := strconv.ParseUint(s[1], 10, 32)
+				if err != nil {
+					continue
+				}
+				decrementProduct(update, uint(productId))
+			case "plus":
+				productId, err := strconv.ParseUint(s[1], 10, 32)
+				if err != nil {
+					continue
+				}
+				incrementProduct(update, uint(productId))
 			case "category":
 				//Show products
-				// println(s[1])
 				categoryId, err := strconv.ParseUint(s[1], 10, 32)
 				if err != nil {
 					continue
 				}
 				showProducts(update.CallbackQuery.Message.Chat.ID, uint(categoryId), update.CallbackQuery.Message.MessageID)
 			case "product":
+				//Product details
 				productId, err := strconv.ParseUint(s[1], 10, 32)
 				if err != nil {
 					continue
 				}
 				//Show product details
+
 				showProductDetails(update.CallbackQuery.Message.Chat.ID, uint(productId), update.CallbackQuery.Message.MessageID)
 			case "product-back":
 				categoryId, err := strconv.ParseUint(s[1], 10, 32)
+				println("\nPRODUCT BACK\n")
+				println(categoryId)
 				if err != nil {
 					continue
 				}
@@ -170,7 +245,12 @@ func HandleBot() {
 			message.ReplyMarkup = reply
 			bot.Send(message)
 		case "🛍 Каталог":
-			showList(update.Message.Chat.ID)
+			showCategories(update.Message.Chat.ID)
+		case "👥 Партнери":
+			showPartner(update.Message.Chat.ID, update.Message.MessageID)
+		case "☎️ Обратная связь":
+			showSettings(update.Message.Chat.ID, update.Message.MessageID)
 		}
+
 	}
 }
