@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"encoding/json"
 	"fmt"
 	"hellobox/database"
 	"hellobox/env"
@@ -102,6 +103,12 @@ func incrementProduct(update tgbotapi.Update, productId uint) {
 	user := models.User{UserId: update.CallbackQuery.From.ID}
 	user = database.FilterUser(user)
 	product := user.Cart.GetProduct(productId)
+	c, _ := json.Marshal(product)
+	fmt.Println("D")
+	fmt.Println()
+	fmt.Println(string(c))
+	fmt.Println()
+	fmt.Println("D")
 	if product != nil {
 		product.Count++
 		user.Cart.SetProduct(*product)
@@ -113,8 +120,10 @@ func incrementProduct(update tgbotapi.Update, productId uint) {
 		realProduct := database.GetSingleProduct(productId)
 		user.Cart.Products = append(user.Cart.Products, models.CartProduct{ProductId: realProduct.Id, Product: realProduct, CartId: user.CartId, Count: 1})
 	}
+	b, _ := json.Marshal(user)
+	fmt.Println(string(b))
 	database.EditUser(user)
-	// showProductDetails(user.ChatId, productId)
+	showProductDetails(user.ChatId, productId, update.CallbackQuery.Message.MessageID, true, &user)
 }
 
 func decrementProduct(update tgbotapi.Update, productId uint) {
@@ -127,18 +136,23 @@ func decrementProduct(update tgbotapi.Update, productId uint) {
 	}
 }
 
-func showProductDetails(chatId int64, productId uint, messageId int) {
+func showProductDetails(chatId int64, productId uint, messageId int, isEdit bool, user *models.User) {
 	product := database.GetSingleProduct(productId)
-	user := models.User{ChatId: chatId}
-	user = database.FilterUser(user)
-
+	if user == nil {
+		user = &models.User{ChatId: chatId}
+		*user = database.FilterUser(*user)
+	}
+	count := 0
+	if user.Cart != nil {
+		count = len(user.Cart.Products)
+	}
 	markup := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("🛒%d", user.Cart.CartTotal()), "cart"),
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("➖", fmt.Sprintf("minus#%d", productId)),
-			tgbotapi.NewInlineKeyboardButtonData("0", "none"),
+			tgbotapi.NewInlineKeyboardButtonData(fmt.Sprint(count), "none"),
 			tgbotapi.NewInlineKeyboardButtonData("➕", fmt.Sprintf("plus#%d", productId)),
 		),
 
@@ -147,6 +161,14 @@ func showProductDetails(chatId int64, productId uint, messageId int) {
 		),
 	)
 	text := fmt.Sprintf("***%s***\nЦена:%d\n%s", product.Name, product.Price, product.Description)
+	if isEdit {
+		edit := tgbotapi.EditMessageCaptionConfig(tgbotapi.EditMessageCaptionConfig{BaseEdit: tgbotapi.BaseEdit{ChatID: user.ChatId, MessageID: messageId}})
+		edit.ReplyMarkup = &markup
+		edit.ParseMode = "markdown"
+		edit.Caption = text
+		env.Bot.Send(edit)
+		return
+	}
 	file := tgbotapi.NewPhoto(chatId, tgbotapi.FileURL(product.ImageUrl))
 	file.ParseMode = "markdown"
 	file.Caption = text
@@ -214,7 +236,7 @@ func HandleBot() {
 				}
 				//Show product details
 
-				showProductDetails(update.CallbackQuery.Message.Chat.ID, uint(productId), update.CallbackQuery.Message.MessageID)
+				showProductDetails(update.CallbackQuery.Message.Chat.ID, uint(productId), update.CallbackQuery.Message.MessageID, false, nil)
 			case "product-back":
 				categoryId, err := strconv.ParseUint(s[1], 10, 32)
 				println("\nPRODUCT BACK\n")

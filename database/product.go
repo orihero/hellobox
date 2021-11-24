@@ -6,7 +6,7 @@ func GetProductsByCategory(categoryId uint) []models.Product {
 	connection := GetDatabase()
 	defer CloseDatabase(connection)
 	var products []models.Product
-	connection.Where(&models.Product{CategoryId: categoryId}).Find(&products)
+	connection.Where(&models.Product{CategoryId: categoryId}).Preload("Options").Preload("Category").Find(&products)
 	return products
 }
 
@@ -14,7 +14,7 @@ func GetSingleProduct(id uint) models.Product {
 	connection := GetDatabase()
 	defer CloseDatabase(connection)
 	var product models.Product
-	connection.Where(&models.Product{Id: id}).First(&product)
+	connection.Where(&models.Product{Id: id}).Preload("Options").Preload("Category").First(&product)
 	return product
 }
 
@@ -22,7 +22,7 @@ func GetProducts() []models.Product {
 	connection := GetDatabase()
 	defer CloseDatabase(connection)
 	var product []models.Product
-	connection.Find(&product)
+	connection.Preload("Options").Preload("Category").Find(&product)
 	return product
 }
 

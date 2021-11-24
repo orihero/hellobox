@@ -1,6 +1,8 @@
 package models
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -26,6 +28,16 @@ type CartProduct struct {
 	CartId    uint           `json:"cart_id"`
 }
 
+type Option struct {
+	Id        uint           `gorm:"primaryKey;autoIncrement:true" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	ImageUrl  string         `json:"image_url"`
+	ProductId uint           `json:"product_id"`
+	Name      string         `json:"name"`
+}
+
 type Product struct {
 	Id            uint           `gorm:"primaryKey;autoIncrement:true" json:"id"`
 	CreatedAt     time.Time      `json:"created_at"`
@@ -39,6 +51,7 @@ type Product struct {
 	ImageUrl      string         `json:"image_url"`
 	ExpiresIn     uint           `json:"expires_in"` //hours
 	ProfitPercent uint           `json:"profit_percent"`
+	Options       []Option       `json:"options"`
 }
 
 type Category struct {
@@ -70,6 +83,12 @@ func (cart *Cart) SetProduct(product CartProduct) {
 			(*ps)[i] = product
 		}
 	}
+	b, _ := json.Marshal(*cart)
+	fmt.Println()
+	fmt.Println()
+	fmt.Println(string(b))
+	fmt.Println()
+	fmt.Println()
 }
 
 func (cart *Cart) CartTotal() (total uint) {
