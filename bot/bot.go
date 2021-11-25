@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"encoding/json"
 	"fmt"
 	"hellobox/database"
 	"hellobox/env"
@@ -39,7 +38,7 @@ func hasContact(update tgbotapi.Update) bool {
 			Phone:     update.Message.Contact.PhoneNumber,
 			Firstname: update.Message.Contact.FirstName,
 			Lastname:  update.Message.Contact.LastName,
-			UserId:    update.Message.From.ID,
+			TgId:      update.Message.From.ID,
 			ChatId:    update.Message.Chat.ID,
 		})
 		if err != nil {
@@ -99,16 +98,10 @@ func showSettings(chatId int64, messageId int) {
 	env.Bot.Send(message)
 }
 
-func incrementProduct(update tgbotapi.Update, productId uint) {
-	user := models.User{UserId: update.CallbackQuery.From.ID}
+func incrementProduct(update tgbotapi.Update, productId uint, isCart bool) {
+	user := models.User{TgId: update.CallbackQuery.From.ID}
 	user = database.FilterUser(user)
 	product := user.Cart.GetProduct(productId)
-	c, _ := json.Marshal(product)
-	fmt.Println("D")
-	fmt.Println()
-	fmt.Println(string(c))
-	fmt.Println()
-	fmt.Println("D")
 	if product != nil {
 		product.Count++
 		user.Cart.SetProduct(*product)
@@ -120,20 +113,32 @@ func incrementProduct(update tgbotapi.Update, productId uint) {
 		realProduct := database.GetSingleProduct(productId)
 		user.Cart.Products = append(user.Cart.Products, models.CartProduct{ProductId: realProduct.Id, Product: realProduct, CartId: user.CartId, Count: 1})
 	}
-	b, _ := json.Marshal(user)
-	fmt.Println(string(b))
 	database.EditUser(user)
+	if isCart {
+		showCart(user.ChatId, update.CallbackQuery.Message.MessageID, isCart)
+		return
+	}
 	showProductDetails(user.ChatId, productId, update.CallbackQuery.Message.MessageID, true, &user)
 }
 
-func decrementProduct(update tgbotapi.Update, productId uint) {
-	user := models.User{UserId: update.CallbackQuery.From.ID}
+func decrementProduct(update tgbotapi.Update, productId uint, isCart bool) {
+	user := models.User{TgId: update.CallbackQuery.From.ID}
 	user = database.FilterUser(user)
 	product := user.Cart.GetProduct(productId)
-	if product != nil {
+	if product != nil && product.Count > 0 {
 		product.Count--
+		if product.Count == 0 {
+			// Remove product from list
+			user.Cart.RemoveProduct(productId)
+		}
 		user.Cart.SetProduct(*product)
 	}
+	database.EditUser(user)
+	if isCart {
+		showCart(user.ChatId, update.CallbackQuery.Message.MessageID, isCart)
+		return
+	}
+	showProductDetails(user.ChatId, productId, update.CallbackQuery.Message.MessageID, true, &user)
 }
 
 func showProductDetails(chatId int64, productId uint, messageId int, isEdit bool, user *models.User) {
@@ -143,8 +148,8 @@ func showProductDetails(chatId int64, productId uint, messageId int, isEdit bool
 		*user = database.FilterUser(*user)
 	}
 	count := 0
-	if user.Cart != nil {
-		count = len(user.Cart.Products)
+	if user.Cart != nil && len(user.Cart.Products) > 0 {
+		count = int(user.Cart.GetProduct(productId).Count)
 	}
 	markup := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
@@ -174,6 +179,41 @@ func showProductDetails(chatId int64, productId uint, messageId int, isEdit bool
 	file.Caption = text
 	file.ReplyMarkup = markup
 	env.Bot.Send(file)
+}
+
+func showCart(chatId int64, messageId int, isEdit bool) {
+	user := models.User{TgId: chatId}
+	user = database.FilterUser(user)
+
+	txt := "***Корзинка***"
+	if user.Cart == nil || len(user.Cart.Products) <= 0 {
+		msg := tgbotapi.NewMessage(chatId, fmt.Sprintf("%s\nВаша корзинка пустая", txt))
+		msg.ParseMode = "markdown"
+		env.Bot.Send(msg)
+		return
+	}
+	markup := tgbotapi.NewInlineKeyboardMarkup()
+	for _, el := range user.Cart.Products {
+		row := tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("➖", fmt.Sprintf("cart-minus#%d", el.ProductId)),
+			tgbotapi.NewInlineKeyboardButtonData(el.Product.Name, "none"),
+			tgbotapi.NewInlineKeyboardButtonData("➕", fmt.Sprintf("cart-plus#%d", el.ProductId)),
+		)
+		markup.InlineKeyboard = append(markup.InlineKeyboard, row)
+		markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Заказать", "order")))
+		txt = fmt.Sprintf("%s\n***%s***\n└  %s  %d x %d = %d", txt, el.Product.Name, el.Product.Name, el.Count, el.Product.Price, el.Product.Price*el.Count)
+	}
+	txt = fmt.Sprintf("%s\n\nUmumiy:%d so'm", txt, user.Cart.CartTotal())
+	if isEdit {
+		msg := tgbotapi.NewEditMessageTextAndMarkup(chatId, messageId, txt, markup)
+		msg.ParseMode = "markdown"
+		env.Bot.Send(msg)
+	} else {
+		msg := tgbotapi.NewMessage(chatId, txt)
+		msg.ReplyMarkup = markup
+		msg.ParseMode = "markdown"
+		env.Bot.Send(msg)
+	}
 }
 
 func SendNews(news models.News) {
@@ -214,13 +254,25 @@ func HandleBot() {
 				if err != nil {
 					continue
 				}
-				decrementProduct(update, uint(productId))
+				decrementProduct(update, uint(productId), false)
 			case "plus":
 				productId, err := strconv.ParseUint(s[1], 10, 32)
 				if err != nil {
 					continue
 				}
-				incrementProduct(update, uint(productId))
+				incrementProduct(update, uint(productId), false)
+			case "cart-minus":
+				productId, err := strconv.ParseUint(s[1], 10, 32)
+				if err != nil {
+					continue
+				}
+				decrementProduct(update, uint(productId), true)
+			case "cart-plus":
+				productId, err := strconv.ParseUint(s[1], 10, 32)
+				if err != nil {
+					continue
+				}
+				incrementProduct(update, uint(productId), true)
 			case "category":
 				//Show products
 				categoryId, err := strconv.ParseUint(s[1], 10, 32)
@@ -235,7 +287,6 @@ func HandleBot() {
 					continue
 				}
 				//Show product details
-
 				showProductDetails(update.CallbackQuery.Message.Chat.ID, uint(productId), update.CallbackQuery.Message.MessageID, false, nil)
 			case "product-back":
 				categoryId, err := strconv.ParseUint(s[1], 10, 32)
@@ -272,6 +323,8 @@ func HandleBot() {
 			showPartner(update.Message.Chat.ID, update.Message.MessageID)
 		case "☎️ Обратная связь":
 			showSettings(update.Message.Chat.ID, update.Message.MessageID)
+		case "🛒 Корзина":
+			showCart(update.Message.Chat.ID, -1, false)
 		}
 
 	}

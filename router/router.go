@@ -17,7 +17,7 @@ func CreateRouter() {
 	prefix.HandleFunc("/category", controller.CreateCategory).Methods("POST")
 
 	//*******PRODUCT
-	prefix.HandleFunc("/product", controller.GetProductes).Methods("GET")
+	prefix.HandleFunc("/product", controller.GetProducts).Methods("GET")
 	prefix.HandleFunc("/product/{id}", controller.DeleteProduct).Methods("DELETE")
 	prefix.HandleFunc("/product", controller.EditProduct).Methods("PUT")
 	prefix.HandleFunc("/product", controller.CreateProduct).Methods("POST")

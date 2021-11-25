@@ -68,7 +68,7 @@ func (cart *Cart) GetProduct(productId uint) *CartProduct {
 	}
 	if len(cart.Products) > 0 {
 		for _, el := range cart.Products {
-			if el.Id == productId {
+			if el.ProductId == productId {
 				return &el
 			}
 		}
@@ -83,12 +83,10 @@ func (cart *Cart) SetProduct(product CartProduct) {
 			(*ps)[i] = product
 		}
 	}
-	b, _ := json.Marshal(*cart)
-	fmt.Println()
-	fmt.Println()
-	fmt.Println(string(b))
-	fmt.Println()
-	fmt.Println()
+}
+
+func (cart *Cart) RemoveProduct() {
+
 }
 
 func (cart *Cart) CartTotal() (total uint) {
@@ -100,3 +98,5 @@ func (cart *Cart) CartTotal() (total uint) {
 	}
 	return total
 }
+
+

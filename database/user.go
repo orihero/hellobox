@@ -23,7 +23,7 @@ func GetUser(userId uint) models.User {
 func FilterUser(usr models.User) models.User {
 	connection := GetDatabase()
 	defer CloseDatabase(connection)
-	connection.Where(&usr).Preload("Cart").Find(&usr)
+	connection.Where(&usr).Preload("Cart").Preload("Cart.Products").Preload("Cart.Products.Product").Find(&usr)
 	return usr
 }
 func CreateUser(user models.User) *models.Error {
@@ -32,7 +32,7 @@ func CreateUser(user models.User) *models.Error {
 	var usr models.User
 	usr.Phone = user.Phone
 	connection.Where(usr).Find(&usr)
-	if usr.UserId != 0 {
+	if usr.TgId != 0 {
 		var err models.Error = models.Error{IsError: true, Message: "User already exist"}
 		return &err
 	}
@@ -44,6 +44,12 @@ func EditUser(user models.User) {
 	connection := GetDatabase()
 	defer CloseDatabase(connection)
 	connection.Save(&user)
+	connection.Save(&user.Cart)
+	if user.Cart != nil && len(user.Cart.Products) > 0 {
+		for _, el := range user.Cart.Products {
+			connection.Save(&el)
+		}
+	}
 }
 
 func DeleteUser(id uint) {

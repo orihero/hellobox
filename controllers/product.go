@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func GetProductes(w http.ResponseWriter, r *http.Request) {
+func GetProducts(w http.ResponseWriter, r *http.Request) {
 	product := database.GetProducts()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(product)
