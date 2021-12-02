@@ -1,8 +1,6 @@
 package models
 
 import (
-	"encoding/json"
-	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -85,8 +83,14 @@ func (cart *Cart) SetProduct(product CartProduct) {
 	}
 }
 
-func (cart *Cart) RemoveProduct() {
-
+func (cart *Cart) RemoveProduct(productId uint) {
+	newProducts := []CartProduct{}
+	for _, el := range cart.Products {
+		if el.ProductId != productId {
+			newProducts = append(newProducts, el)
+		}
+	}
+	cart.Products = newProducts
 }
 
 func (cart *Cart) CartTotal() (total uint) {
@@ -98,5 +102,3 @@ func (cart *Cart) CartTotal() (total uint) {
 	}
 	return total
 }
-
-

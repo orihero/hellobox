@@ -129,7 +129,8 @@ func decrementProduct(update tgbotapi.Update, productId uint, isCart bool) {
 		product.Count--
 		if product.Count == 0 {
 			// Remove product from list
-			user.Cart.RemoveProduct(productId)
+			// user.Cart.RemoveProduct(productId)
+			database.ClearUserCart(user)
 		}
 		user.Cart.SetProduct(*product)
 	}
@@ -190,6 +191,9 @@ func showCart(chatId int64, messageId int, isEdit bool) {
 		msg := tgbotapi.NewMessage(chatId, fmt.Sprintf("%s\nВаша корзинка пустая", txt))
 		msg.ParseMode = "markdown"
 		env.Bot.Send(msg)
+		if isEdit {
+			env.Bot.Send(tgbotapi.NewDeleteMessage(chatId, messageId))
+		}
 		return
 	}
 	markup := tgbotapi.NewInlineKeyboardMarkup()
@@ -227,6 +231,18 @@ func SendNews(news models.News) {
 		file.Caption = news.Description
 		env.Bot.Send(file)
 	}
+}
+
+func makeOrder(update tgbotapi.Update) {
+	user := database.FilterUser(models.User{TgId: update.CallbackQuery.From.ID})
+	database.CreateOrder(models.Order{
+		Cart: *user.Cart,
+	})
+	txt := "Ваш заказ выполнен."
+	msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, fmt.Sprintf("%s\nВаш токен: ***%s***", txt, user.Cart.Token))
+	msg.ParseMode = "markdown"
+	env.Bot.Send(msg)
+	database.ClearUserCart(user)
 }
 
 func HandleBot() {
@@ -290,12 +306,12 @@ func HandleBot() {
 				showProductDetails(update.CallbackQuery.Message.Chat.ID, uint(productId), update.CallbackQuery.Message.MessageID, false, nil)
 			case "product-back":
 				categoryId, err := strconv.ParseUint(s[1], 10, 32)
-				println("\nPRODUCT BACK\n")
-				println(categoryId)
 				if err != nil {
 					continue
 				}
 				showProducts(update.CallbackQuery.Message.Chat.ID, uint(categoryId), update.CallbackQuery.Message.MessageID)
+			case "order":
+				makeOrder(update)
 			}
 			continue
 		}

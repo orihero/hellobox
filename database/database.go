@@ -37,6 +37,7 @@ func InitialMigration() {
 	_ = connection.AutoMigrate(models.ContactInfo{})
 	_ = connection.AutoMigrate(models.Branch{})
 	_ = connection.AutoMigrate(models.Option{})
+	_ = connection.AutoMigrate(models.Order{})
 }
 
 //closes database connection

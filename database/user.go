@@ -52,6 +52,12 @@ func EditUser(user models.User) {
 	}
 }
 
+func ClearUserCart(user models.User) {
+	connection := GetDatabase()
+	defer CloseDatabase(connection)
+	connection.Model(&user).Association("Cart").Delete(user.Cart)
+}
+
 func DeleteUser(id uint) {
 	connection := GetDatabase()
 	defer CloseDatabase(connection)
