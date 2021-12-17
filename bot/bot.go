@@ -107,11 +107,11 @@ func incrementProduct(update tgbotapi.Update, productId uint, isCart bool) {
 		user.Cart.SetProduct(*product)
 	} else {
 		if user.Cart == nil || len(user.Cart.Products) == 0 {
-			u, _ := uuid.NewV4()
-			user.Cart = &models.Cart{Token: u.String()}
+			user.Cart = &models.Cart{}
 		}
+		u, _ := uuid.NewV4()
 		realProduct := database.GetSingleProduct(productId)
-		user.Cart.Products = append(user.Cart.Products, models.CartProduct{ProductId: realProduct.Id, Product: realProduct, CartId: user.CartId, Count: 1})
+		user.Cart.Products = append(user.Cart.Products, models.CartProduct{ProductId: realProduct.Id, Product: realProduct, CartId: user.CartId, Count: 1, Token: u.String()})
 	}
 	database.EditUser(user)
 	if isCart {
@@ -239,9 +239,16 @@ func makeOrder(update tgbotapi.Update) {
 		Cart: *user.Cart,
 	})
 	txt := "Ваш заказ выполнен."
-	msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, fmt.Sprintf("%s\nВаш токен: ***%s***", txt, user.Cart.Token))
+	msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, fmt.Sprintf("%s\nВаш токен: ***%s***", txt, user.Cart.Products[0].Token))
 	msg.ParseMode = "markdown"
 	env.Bot.Send(msg)
+	items := []tgbotapi.LabeledPrice{}
+	for _, el := range user.Cart.Products {
+		items = append(items, tgbotapi.LabeledPrice{Label: el.Product.Name, Amount: int(el.Product.Price) * 100 * int(el.Count)})
+	}
+	in := tgbotapi.NewInvoice(update.CallbackQuery.Message.Chat.ID, "PAyment", "Pay plz", user.Cart.Products[0].Token, "371317599:TEST:1638986618188", user.Cart.Products[0].Token, "UZS", items)
+	in.SuggestedTipAmounts = []int{}
+	env.Bot.Send(in)
 	database.ClearUserCart(user)
 }
 

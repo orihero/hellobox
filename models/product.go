@@ -12,7 +12,6 @@ type Cart struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 	Products  []CartProduct  `json:"products"`
-	Token     string         `json:"token"`
 }
 
 type CartProduct struct {
@@ -24,6 +23,7 @@ type CartProduct struct {
 	Product   Product        `json:"product"`
 	Count     uint           `json:"count"`
 	CartId    uint           `json:"cart_id"`
+	Token     string         `json:"token"`
 }
 
 type Option struct {

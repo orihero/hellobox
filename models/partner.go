@@ -29,4 +29,6 @@ type Partner struct {
 	Image                string         `json:"image"`
 	DefaultProfitPercent uint           `json:"default_profit_percent"`
 	Branches             []Branch       `json:"branches"`
+	Contact              ContactInfo    `json:"contact"`
+	ContactId            uint           `json:"contact_id"`
 }
