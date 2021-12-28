@@ -23,7 +23,7 @@ func GetUser(userId uint) models.User {
 func FilterUser(usr models.User) models.User {
 	connection := GetDatabase()
 	defer CloseDatabase(connection)
-	connection.Where(&usr).Preload("Cart").Preload("Cart.Products").Preload("Cart.Products.Product").Find(&usr)
+	connection.Where(&usr).Preload("Cart").Preload("Cart.Products").Preload("Cart.Products.Product").Preload("Cart.Products.Product.Options").Find(&usr)
 	return usr
 }
 func CreateUser(user models.User) *models.Error {

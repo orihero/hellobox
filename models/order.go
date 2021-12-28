@@ -13,4 +13,5 @@ type Order struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 	CartId    uint           `json:"cart_id"`
 	Cart      Cart           `json:"cart"`
+	UserId    uint           `json:"user_id"`
 }

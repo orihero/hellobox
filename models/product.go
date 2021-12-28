@@ -15,15 +15,17 @@ type Cart struct {
 }
 
 type CartProduct struct {
-	Id        uint           `gorm:"primaryKey;autoIncrement:true" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
-	ProductId uint           `json:"product_id"`
-	Product   Product        `json:"product"`
-	Count     uint           `json:"count"`
-	CartId    uint           `json:"cart_id"`
-	Token     string         `json:"token"`
+	Id          uint           `gorm:"primaryKey;autoIncrement:true" json:"id"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	ProductId   uint           `json:"product_id"`
+	Product     Product        `json:"product"`
+	Count       uint           `json:"count"`
+	CartId      uint           `json:"cart_id"`
+	Token       string         `json:"token"`
+	Utilized    bool           `json:"utilized"`
+	OptionIndex uint           `json:"option_index"`
 }
 
 type Option struct {
@@ -50,6 +52,7 @@ type Product struct {
 	ExpiresIn     uint           `json:"expires_in"` //hours
 	ProfitPercent uint           `json:"profit_percent"`
 	Options       []Option       `json:"options"`
+	PartnerId     uint           `json:"partner_id"`
 }
 
 type Category struct {
