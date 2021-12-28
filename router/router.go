@@ -3,6 +3,7 @@ package router
 import (
 	controller "hellobox/controllers"
 	"hellobox/env"
+	"net/http"
 
 	"github.com/gorilla/mux"
 )
@@ -49,4 +50,6 @@ func CreateRouter() {
 	//*******UPLOAD/DOWNLOAD
 	prefix.HandleFunc("/file-upload", controller.MultipleFileUpload).Methods("POST")
 	prefix.HandleFunc("/file-download/{name}", controller.GetUploadedFiles).Methods("GET")
+
+	env.Router.PathPrefix("/").Handler(http.FileServer(http.Dir("./web")))
 }
