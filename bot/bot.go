@@ -209,6 +209,9 @@ func showProductDetails(update tgbotapi.Update, productId uint, messageId int, i
 		markup.InlineKeyboard = append(markup.InlineKeyboard, row)
 		markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("🎁 Отправить как подарок", "present")))
+		markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("✅ Оформить заказ", "show-cart"),
+		))
 	} else {
 		markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("🎁 Кастомизировать продукт", fmt.Sprintf("customize#%d", productId))))
 	}
@@ -219,18 +222,40 @@ func showProductDetails(update tgbotapi.Update, productId uint, messageId int, i
 	text := fmt.Sprintf("***%s***\nЦена:%d\n%s", product.Name, product.Price, product.Description)
 	if isEdit {
 		//!TODO COMPLETE
-		// var selectedOption uint
-		// if showOptions {
-		// 	url := product.ImageUrl
-		// 	if user.Cart != nil && len(user.Cart.Products) > 0 && selectedOption != 0 {
-		// 		pr := user.Cart.GetProduct(productId)
-		// 		url = pr.Product.Options[selectedOption-1].ImageUrl
-		// 	}
-		// 	edit := tgbotapi.EditMessageMediaConfig(tgbotapi.EditMessageMediaConfig{BaseEdit: tgbotapi.BaseEdit{ChatID: user.ChatId, MessageID: messageId}, Media: tgbotapi.FileURL(url)})
-		// 	edit.ReplyMarkup = &markup
-		// 	env.Bot.Send(edit)
-		// 	return
-		// }
+		var selectedOption uint
+		if optionIndex == -1 {
+			if user.Cart == nil || len(user.Cart.Products) <= 0 {
+				selectedOption = 0
+			} else {
+				p := user.Cart.GetProduct(productId)
+				if p != nil {
+					selectedOption = p.OptionIndex
+				} else {
+					selectedOption = 0
+				}
+			}
+		} else {
+			selectedOption = uint(optionIndex)
+			pr := user.Cart.GetProduct(productId)
+			pr.OptionIndex = uint(optionIndex)
+			database.EditCartProduct(*pr)
+		}
+		if showOptions {
+			url := product.ImageUrl
+			if user.Cart != nil && len(user.Cart.Products) > 0 && selectedOption != 0 {
+				pr := user.Cart.GetProduct(productId)
+				url = pr.Product.Options[selectedOption-1].ImageUrl
+			}
+			fmt.Println(url)
+			del := tgbotapi.NewDeleteMessage(user.ChatId, messageId)
+			env.Bot.Send(del)
+			file := tgbotapi.NewPhoto(chatId, tgbotapi.FileURL(url))
+			file.ParseMode = "markdown"
+			file.Caption = text
+			file.ReplyMarkup = markup
+			env.Bot.Send(file)
+			return
+		}
 		edit := tgbotapi.EditMessageCaptionConfig(tgbotapi.EditMessageCaptionConfig{BaseEdit: tgbotapi.BaseEdit{ChatID: user.ChatId, MessageID: messageId}})
 		edit.ReplyMarkup = &markup
 		edit.ParseMode = "markdown"
@@ -291,9 +316,9 @@ func showCart(chatId int64, messageId int, isEdit bool) {
 			tgbotapi.NewInlineKeyboardButtonData("➕", fmt.Sprintf("cart-plus#%d", el.ProductId)),
 		)
 		markup.InlineKeyboard = append(markup.InlineKeyboard, row)
-		markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Заказать", "order")))
 		txt = fmt.Sprintf("%s\n***%s***\n└  %s  %d x %d = %d", txt, el.Product.Name, el.Product.Name, el.Count, el.Product.Price, el.Product.Price*el.Count)
 	}
+	markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("✅ Оформить заказ", "order")))
 	txt = fmt.Sprintf("%s\n\nВсего:%d сум", txt, user.Cart.CartTotal())
 	if isEdit {
 		msg := tgbotapi.NewEditMessageTextAndMarkup(chatId, messageId, txt, markup)
@@ -380,25 +405,29 @@ func HandleBot() {
 				continue
 			}
 			bot.Send(tgbotapi.PreCheckoutConfig{PreCheckoutQueryID: update.PreCheckoutQuery.ID, OK: true})
-			product := database.GetCartProductsByToken(update.PreCheckoutQuery.InvoicePayload)
-			selectedOption := product.OptionIndex
-			url := product.Product.ImageUrl
-			if selectedOption != 0 {
-				url = product.Product.Options[selectedOption-1].ImageUrl
+			//Sending prompt
+			txt := "Ваш заказ выполнен ✅\nМожете переслать изображение продукта с кодом любому человеку 😊"
+			prompt := tgbotapi.NewMessage(update.PreCheckoutQuery.From.ID, txt)
+			env.Bot.Send(prompt)
+
+			//Sending tokens
+			for _, el := range user.Cart.Products {
+				//Product data
+				selectedOption := el.OptionIndex
+				url := el.Product.ImageUrl
+				if selectedOption != 0 {
+					url = el.Product.Options[selectedOption-1].ImageUrl
+				}
+				//Sending photo
+				file := tgbotapi.NewPhoto(user.ChatId, tgbotapi.FileURL(url))
+				file.ParseMode = "markdown"
+				text := fmt.Sprintf("***%s***\n%s", el.Product.Name, el.Product.Description)
+				file.Caption = text
+				env.Bot.Send(file)
+				msg := tgbotapi.NewMessage(update.PreCheckoutQuery.From.ID, fmt.Sprintf("⏰Период активации: 12.03.21-12.04.21\n🔑Код активации:  ***%s***\n___*Не показывайте код другим людям, его можете активировать только вы или знающий его человек;\n*Сервис пока работает только на территории города Ташкента.___", el.Token))
+				msg.ParseMode = "markdown"
+				env.Bot.Send(msg)
 			}
-			file := tgbotapi.NewPhoto(user.ChatId, tgbotapi.FileURL(url))
-			file.ParseMode = "markdown"
-			text := fmt.Sprintf("***%s***\n%s", product.Product.Name, product.Product.Description)
-			file.Caption = text
-			env.Bot.Send(file)
-			txt := "Ваш заказ выполнен ✅
-			Можете переслать изображение продукта с кодом любому человеку 😊"
-			msg := tgbotapi.NewMessage(update.PreCheckoutQuery.From.ID, fmt.Sprintf("%s\n⏰Период активации: 12.03.21-12.04.21
-			🔑Код активации: ef4c6b53-99d8-45b5-6ab9-2633e9e15e4b 
-			*Не показывайте код другим людям, его можете активировать только вы или знающий его человек;
-			*Сервис пока работает только на территории города Ташкента.: ***%s***", txt, user.Cart.Products[0].Token))
-			msg.ParseMode = "markdown"
-			env.Bot.Send(msg)
 			database.ClearUserCart(user)
 			continue
 		}
@@ -477,6 +506,8 @@ func HandleBot() {
 				showProductDetails(update, uint(productId), update.CallbackQuery.Message.MessageID, true, nil, true, int(optionIndex))
 			case "present":
 				sendAsPresent(update)
+			case "show-cart":
+				showCart(update.CallbackQuery.Message.Chat.ID, -1, false)
 			}
 
 			continue
@@ -497,8 +528,9 @@ func HandleBot() {
 				),
 			)
 			message := tgbotapi.NewMessage(update.Message.Chat.ID, "Чтобы начать отправте ваши контакты")
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, `Отправляя ваши контакты вы соглашаетесь с пользовательским соглашением "Hellobox":\nhttps://hellobox.uz/privacy-policy`)
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Отправляя ваши контакты вы соглашаетесь с пользовательским соглашением \"Hellobox\":https://hellobox.uz/privacy-policy\n___*Сервис пока работает только на территории города Ташкента___")
 			message.ReplyMarkup = reply
+			msg.ParseMode = "markdown"
 			bot.Send(message)
 			bot.Send(msg)
 		case "🛍 Каталог":

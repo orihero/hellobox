@@ -26,6 +26,7 @@ type CartProduct struct {
 	Token       string         `json:"token"`
 	Utilized    bool           `json:"utilized"`
 	OptionIndex uint           `json:"option_index"`
+	IsPresent   bool           `json:"is_present"`
 }
 
 type Option struct {
