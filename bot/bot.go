@@ -24,14 +24,14 @@ func sendMenu(id int64) {
 			tgbotapi.KeyboardButton{Text: "🔥 Топ продаж"},
 		),
 		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.KeyboardButton{Text: "☎️ Обратная связь"},
-			tgbotapi.KeyboardButton{Text: "📜 История заказов"},
+			tgbotapi.KeyboardButton{Text: "📱 Контакты"},
+			tgbotapi.KeyboardButton{Text: "📆 История заказов"},
 		),
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.KeyboardButton{Text: "🎁 Открыть полученный подарок"},
 		),
 	)
-	message := tgbotapi.NewMessage(id, "Кто то сегодня обрадуется")
+	message := tgbotapi.NewMessage(id, "Кто то сегодня обрадуется 😍")
 	message.ReplyMarkup = reply
 	env.Bot.Send(message)
 }
@@ -294,7 +294,7 @@ func showCart(chatId int64, messageId int, isEdit bool) {
 		markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Заказать", "order")))
 		txt = fmt.Sprintf("%s\n***%s***\n└  %s  %d x %d = %d", txt, el.Product.Name, el.Product.Name, el.Count, el.Product.Price, el.Product.Price*el.Count)
 	}
-	txt = fmt.Sprintf("%s\n\nUmumiy:%d so'm", txt, user.Cart.CartTotal())
+	txt = fmt.Sprintf("%s\n\nВсего:%d сум", txt, user.Cart.CartTotal())
 	if isEdit {
 		msg := tgbotapi.NewEditMessageTextAndMarkup(chatId, messageId, txt, markup)
 		msg.ParseMode = "markdown"
@@ -391,8 +391,12 @@ func HandleBot() {
 			text := fmt.Sprintf("***%s***\n%s", product.Product.Name, product.Product.Description)
 			file.Caption = text
 			env.Bot.Send(file)
-			txt := "Ваш заказ выполнен."
-			msg := tgbotapi.NewMessage(update.PreCheckoutQuery.From.ID, fmt.Sprintf("%s\nВаш токен: ***%s***", txt, user.Cart.Products[0].Token))
+			txt := "Ваш заказ выполнен ✅
+			Можете переслать изображение продукта с кодом любому человеку 😊"
+			msg := tgbotapi.NewMessage(update.PreCheckoutQuery.From.ID, fmt.Sprintf("%s\n⏰Период активации: 12.03.21-12.04.21
+			🔑Код активации: ef4c6b53-99d8-45b5-6ab9-2633e9e15e4b 
+			*Не показывайте код другим людям, его можете активировать только вы или знающий его человек;
+			*Сервис пока работает только на территории города Ташкента.: ***%s***", txt, user.Cart.Products[0].Token))
 			msg.ParseMode = "markdown"
 			env.Bot.Send(msg)
 			database.ClearUserCart(user)
@@ -493,7 +497,7 @@ func HandleBot() {
 				),
 			)
 			message := tgbotapi.NewMessage(update.Message.Chat.ID, "Чтобы начать отправте ваши контакты")
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Отправляя ваши контакты вы соглашаетесь политикой конфиденциальности Hellobox\nhttps://hellobox.uz/privacy-policy")
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, `Отправляя ваши контакты вы соглашаетесь с пользовательским соглашением "Hellobox":\nhttps://hellobox.uz/privacy-policy`)
 			message.ReplyMarkup = reply
 			bot.Send(message)
 			bot.Send(msg)
