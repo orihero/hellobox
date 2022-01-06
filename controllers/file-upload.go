@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 
+	"hellobox/database"
 	"hellobox/models"
 
 	"github.com/gorilla/mux"
@@ -61,4 +62,25 @@ func GetUploadedFiles(w http.ResponseWriter, r *http.Request) {
 	//defer img.Close()
 	w.Header().Set("Content-Type", "text")
 	io.Copy(w, img)
+}
+
+func UpdatePresentImage(w http.ResponseWriter, r *http.Request) {
+	var presentImage models.PresentImage
+	err := json.NewDecoder(r.Body).Decode(&presentImage)
+	if err != nil {
+		error := models.Error{IsError: true, Message: "Unproccessable entity"}
+		w.Header().Set("Content-type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(error)
+		return
+	}
+	database.UpdatePresentImage(presentImage)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(presentImage)
+}
+func GetPresentImage(w http.ResponseWriter, r *http.Request) {
+
+	presentImage := database.GetPresentImage()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(presentImage)
 }

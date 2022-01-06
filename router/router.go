@@ -11,6 +11,10 @@ import (
 func CreateRouter() {
 	env.Router = mux.NewRouter()
 	prefix := env.Router.PathPrefix("/api/").Subrouter()
+	env.Router.PathPrefix("/manage").Handler(http.StripPrefix("/manage", http.FileServer(http.Dir("./admin"))))
+	prefix.HandleFunc("/update-present-image", controller.UpdatePresentImage).Methods("POST")
+	prefix.HandleFunc("/get-present-image", controller.GetPresentImage).Methods("GET")
+
 	//******CATEGORY
 	prefix.HandleFunc("/category", controller.GetCategories).Methods("GET")
 	prefix.HandleFunc("/category/{id}", controller.DeleteCategory).Methods("DELETE")

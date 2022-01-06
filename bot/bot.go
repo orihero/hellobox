@@ -33,6 +33,8 @@ func sendMenu(id int64) {
 	)
 	message := tgbotapi.NewMessage(id, "Кто то сегодня обрадуется 😍")
 	message.ReplyMarkup = reply
+	// del := tgbotapi.NewDeleteMessage(id, int(messageId))
+	// env.Bot.Send(del)
 	env.Bot.Send(message)
 }
 
@@ -65,7 +67,6 @@ func showCategories(id int64) {
 	message := tgbotapi.NewMessage(id, "Выберите нужную категорию ☺️ ")
 	message.ReplyMarkup = markup
 	env.Bot.Send(message)
-
 }
 
 func showProducts(chatId int64, categoryId uint, messageId int, partnerId uint) {
@@ -83,10 +84,12 @@ func showProducts(chatId int64, categoryId uint, messageId int, partnerId uint) 
 	}
 	message := tgbotapi.NewMessage(chatId, "Выберите продукт")
 	message.ReplyMarkup = markup
+	del := tgbotapi.NewDeleteMessage(chatId, messageId)
+	env.Bot.Send(del)
 	env.Bot.Send(message)
 }
 
-func showPartner(chatId int64, messageId int) {
+func showPartner(chatId int64) {
 	partner := database.GetPartner()
 	markup := tgbotapi.NewInlineKeyboardMarkup()
 	for i := 1; i < len(partner); i += 2 {
@@ -99,7 +102,7 @@ func showPartner(chatId int64, messageId int) {
 	env.Bot.Send(message)
 }
 
-func showSettings(chatId int64, messageId int) {
+func showSettings(chatId int64) {
 	settings := database.GetSettings()
 	for i := 1; i < len(settings); i += 2 {
 	}
@@ -185,30 +188,53 @@ func showProductDetails(update tgbotapi.Update, productId uint, messageId int, i
 	if showOptions {
 		var selectedOption uint
 		if optionIndex == -1 {
-			selectedOption = user.Cart.GetProduct(productId).OptionIndex
+			if user.Cart != nil && len(user.Cart.Products) > 0 {
+				selectedOption = user.Cart.GetProduct(productId).OptionIndex
+			}
 		} else {
-			selectedOption = uint(optionIndex)
-			pr := user.Cart.GetProduct(productId)
-			pr.OptionIndex = uint(optionIndex)
-			database.EditCartProduct(*pr)
+			if optionIndex == 1000 {
+				pr := user.Cart.GetProduct(productId)
+				pr.IsPresent = true
+				pr.OptionIndex = 0
+				database.EditCartProduct(*pr)
+				fmt.Print("\n\n\nPRESENT\n\n\n")
+				fmt.Printf("\n\n\n%s\n\n\n", strconv.FormatBool(pr.IsPresent))
+				fmt.Println(pr)
+			} else {
+				selectedOption = uint(optionIndex)
+				pr := user.Cart.GetProduct(productId)
+				pr.OptionIndex = uint(optionIndex)
+				pr.IsPresent = false
+				if optionIndex == 1000 || pr.IsPresent {
+					pr.OptionIndex = 0
+				}
+				database.EditCartProduct(*pr)
+			}
 		}
-		firstText := "1 ✅"
-		if selectedOption != 0 {
+		isPresent := user.Cart.GetProduct(productId).IsPresent
+		firstText := "1 ☑️"
+		if selectedOption != 0 || optionIndex == 1000 || isPresent {
 			firstText = "1"
 		}
 		row := tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(firstText, fmt.Sprintf("option#0#%d", productId)))
 		//Appending product options
 		for i, _ := range product.Options {
 			txt := fmt.Sprint(i + 2)
-			if i+1 == int(selectedOption) {
-				txt = fmt.Sprintf("%d ✅", i+2)
+			if i+1 == int(selectedOption) && optionIndex != 1000 && !isPresent {
+				txt = fmt.Sprintf("%d ☑️", i+2)
 			}
 			row = append(row, tgbotapi.NewInlineKeyboardButtonData(txt, fmt.Sprintf("option#%d#%d", i+1, productId)))
 		}
 
 		markup.InlineKeyboard = append(markup.InlineKeyboard, row)
-		markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("🎁 Отправить как подарок", "present")))
+		p := user.Cart.GetProduct(productId)
+		if p.IsPresent || optionIndex == 1000 || p.OptionIndex == 1000 {
+			markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("🎁 Отправить как подарок ☑️", fmt.Sprintf("select-present#%d", p.ProductId))))
+		} else {
+			markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("🎁 Отправить как подарок", fmt.Sprintf("select-present#%d", p.ProductId))))
+		}
 		markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("✅ Оформить заказ", "show-cart"),
 		))
@@ -242,11 +268,25 @@ func showProductDetails(update tgbotapi.Update, productId uint, messageId int, i
 		}
 		if showOptions {
 			url := product.ImageUrl
-			if user.Cart != nil && len(user.Cart.Products) > 0 && selectedOption != 0 {
+			if user.Cart != nil && len(user.Cart.Products) > 0 && selectedOption != 0 && optionIndex != 1000 {
 				pr := user.Cart.GetProduct(productId)
-				url = pr.Product.Options[selectedOption-1].ImageUrl
+				if pr.OptionIndex == 1000 {
+					pi := database.GetPresentImage()
+					url = pi.ImageUrl
+				} else {
+					url = pr.Product.Options[selectedOption-1].ImageUrl
+				}
 			}
-			fmt.Println(url)
+			prod := user.Cart.GetProduct(productId)
+			if prod.IsPresent || optionIndex == 1000 {
+				pi := database.GetPresentImage()
+				url = pi.ImageUrl
+			}
+			fmt.Println()
+			fmt.Println()
+			fmt.Println(selectedOption, prod.IsPresent, optionIndex)
+			fmt.Println()
+			fmt.Println()
 			del := tgbotapi.NewDeleteMessage(user.ChatId, messageId)
 			env.Bot.Send(del)
 			file := tgbotapi.NewPhoto(chatId, tgbotapi.FileURL(url))
@@ -260,6 +300,10 @@ func showProductDetails(update tgbotapi.Update, productId uint, messageId int, i
 		edit.ReplyMarkup = &markup
 		edit.ParseMode = "markdown"
 		edit.Caption = text
+		if !isEdit {
+			del := tgbotapi.NewDeleteMessage(chatId, messageId)
+			env.Bot.Send(del)
+		}
 		env.Bot.Send(edit)
 		return
 	}
@@ -280,17 +324,26 @@ func showProductDetails(update tgbotapi.Update, productId uint, messageId int, i
 		selectedOption = uint(optionIndex)
 		pr := user.Cart.GetProduct(productId)
 		pr.OptionIndex = uint(optionIndex)
+		if optionIndex == 1000 || pr.IsPresent {
+			pr.OptionIndex = 0
+		}
 		database.EditCartProduct(*pr)
 	}
 	url := product.ImageUrl
 	if user.Cart != nil && len(user.Cart.Products) > 0 && selectedOption != 0 {
-		pr := user.Cart.GetProduct(productId)
-		url = pr.Product.Options[selectedOption-1].ImageUrl
+		if pr := user.Cart.GetProduct(productId); !pr.IsPresent && pr.OptionIndex != 1000 {
+			url = pr.Product.Options[selectedOption-1].ImageUrl
+		} else {
+			pi := database.GetPresentImage()
+			url = pi.ImageUrl
+		}
 	}
 	file := tgbotapi.NewPhoto(chatId, tgbotapi.FileURL(url))
 	file.ParseMode = "markdown"
 	file.Caption = text
 	file.ReplyMarkup = markup
+	del := tgbotapi.NewDeleteMessage(chatId, messageId)
+	env.Bot.Send(del)
 	env.Bot.Send(file)
 }
 
@@ -330,6 +383,8 @@ func showCart(chatId int64, messageId int, isEdit bool) {
 		msg.ParseMode = "markdown"
 		env.Bot.Send(msg)
 	}
+	del := tgbotapi.NewDeleteMessage(chatId, messageId)
+	env.Bot.Send(del)
 }
 
 func SendNews(news models.News) {
@@ -351,11 +406,17 @@ func makeOrder(update tgbotapi.Update) {
 		Cart: *user.Cart,
 	})
 	items := []tgbotapi.LabeledPrice{}
+	txt := "Оплата"
 	for _, el := range user.Cart.Products {
 		items = append(items, tgbotapi.LabeledPrice{Label: el.Product.Name, Amount: int(el.Product.Price) * 100 * int(el.Count)})
 	}
-	in := tgbotapi.NewInvoice(update.CallbackQuery.Message.Chat.ID, "PAyment", "Pay plz", user.Cart.Products[0].Token, "371317599:TEST:1638986618188", user.Cart.Products[0].Token, "UZS", items)
+	in := tgbotapi.NewInvoice(update.CallbackQuery.Message.Chat.ID, "Hellobox", txt, user.Cart.Products[0].Token, "371317599:TEST:1638986618188", user.Cart.Products[0].Token, "UZS", items)
 	in.SuggestedTipAmounts = []int{}
+	pay := tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("💳 %d", user.Cart.CartTotal()), "")
+	pay.Pay = true
+	in.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(pay))
+	del := tgbotapi.NewDeleteMessage(update.CallbackQuery.From.ID, int(update.CallbackQuery.Message.MessageID))
+	env.Bot.Send(del)
 	env.Bot.Send(in)
 }
 
@@ -416,12 +477,20 @@ func HandleBot() {
 				selectedOption := el.OptionIndex
 				url := el.Product.ImageUrl
 				if selectedOption != 0 {
-					url = el.Product.Options[selectedOption-1].ImageUrl
+					if selectedOption == 1000 {
+						pr := database.GetPresentImage()
+						url = pr.ImageUrl
+					} else {
+						url = el.Product.Options[selectedOption-1].ImageUrl
+					}
 				}
 				//Sending photo
 				file := tgbotapi.NewPhoto(user.ChatId, tgbotapi.FileURL(url))
 				file.ParseMode = "markdown"
 				text := fmt.Sprintf("***%s***\n%s", el.Product.Name, el.Product.Description)
+				if el.OptionIndex == 1000 {
+					text = fmt.Sprintf("***Вам отправили подарок 🎁***\nЧтобы его открыть переходите  по ссылке в Телеграм бот «Hellobox (https://t.me/helloboxbot)».И напишите «Код активации» в раздел: \n***«🎁 Открыть полученный подарок».***")
+				}
 				file.Caption = text
 				env.Bot.Send(file)
 				msg := tgbotapi.NewMessage(update.PreCheckoutQuery.From.ID, fmt.Sprintf("⏰Период активации: 12.03.21-12.04.21\n🔑Код активации:  ***%s***\n___*Не показывайте код другим людям, его можете активировать только вы или знающий его человек;\n*Сервис пока работает только на территории города Ташкента.___", el.Token))
@@ -507,7 +576,13 @@ func HandleBot() {
 			case "present":
 				sendAsPresent(update)
 			case "show-cart":
-				showCart(update.CallbackQuery.Message.Chat.ID, -1, false)
+				showCart(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, false)
+			case "select-present":
+				productId, err := strconv.ParseUint(s[1], 10, 32)
+				if err != nil {
+					continue
+				}
+				showProductDetails(update, uint(productId), update.CallbackQuery.Message.MessageID, true, nil, true, 1000)
 			}
 
 			continue
@@ -536,9 +611,9 @@ func HandleBot() {
 		case "🛍 Каталог":
 			showCategories(update.Message.Chat.ID)
 		case "👥 Партнери":
-			showPartner(update.Message.Chat.ID, update.Message.MessageID)
+			showPartner(update.Message.Chat.ID)
 		case "☎️ Обратная связь":
-			showSettings(update.Message.Chat.ID, update.Message.MessageID)
+			showSettings(update.Message.Chat.ID)
 		case "🛒 Корзина":
 			showCart(update.Message.Chat.ID, -1, false)
 		case "🎁 Открыть полученный подарок":
