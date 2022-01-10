@@ -1,0 +1,24 @@
+{
+  "files": {
+    "main.css": "/static/css/main.6afca698.chunk.css",
+    "main.js": "/static/js/main.7b8f6b14.chunk.js",
+    "main.js.map": "/static/js/main.7b8f6b14.chunk.js.map",
+    "runtime-main.js": "/static/js/runtime-main.a74c6b01.js",
+    "runtime-main.js.map": "/static/js/runtime-main.a74c6b01.js.map",
+    "static/js/2.5392fd9d.chunk.js": "/static/js/2.5392fd9d.chunk.js",
+    "static/js/2.5392fd9d.chunk.js.map": "/static/js/2.5392fd9d.chunk.js.map",
+    "static/js/3.a8fda75a.chunk.js": "/static/js/3.a8fda75a.chunk.js",
+    "static/js/3.a8fda75a.chunk.js.map": "/static/js/3.a8fda75a.chunk.js.map",
+    "index.html": "/index.html",
+    "static/css/main.6afca698.chunk.css.map": "/static/css/main.6afca698.chunk.css.map",
+    "static/js/2.5392fd9d.chunk.js.LICENSE.txt": "/static/js/2.5392fd9d.chunk.js.LICENSE.txt",
+    "static/media/image_2021-11-08_19-42-30.fd15b939.png": "/static/media/image_2021-11-08_19-42-30.fd15b939.png",
+    "static/media/wp2803554.0c199a1c.jpeg": "/static/media/wp2803554.0c199a1c.jpeg"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.a74c6b01.js",
+    "static/js/2.5392fd9d.chunk.js",
+    "static/css/main.6afca698.chunk.css",
+    "static/js/main.7b8f6b14.chunk.js"
+  ]
+}

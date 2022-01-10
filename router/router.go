@@ -14,6 +14,10 @@ func CreateRouter() {
 	env.Router.PathPrefix("/manage").Handler(http.StripPrefix("/manage", http.FileServer(http.Dir("./admin"))))
 	prefix.HandleFunc("/update-present-image", controller.UpdatePresentImage).Methods("POST")
 	prefix.HandleFunc("/get-present-image", controller.GetPresentImage).Methods("GET")
+	env.Router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./admin/static"))))
+	// env.Router.PathPrefix("/js/").Handler(http.StripPrefix("/js/", http.FileServer(http.Dir("./templates/js"))))
+	// env.Router.PathPrefix("/img/").Handler(http.StripPrefix("/img/", http.FileServer(http.Dir("./templates/img"))))
+	// env.Router.PathPrefix("/fonts/").Handler(http.StripPrefix("/fonts/", http.FileServer(http.Dir("./templates/fonts"))))
 
 	//******CATEGORY
 	prefix.HandleFunc("/category", controller.GetCategories).Methods("GET")
