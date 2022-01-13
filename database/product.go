@@ -91,6 +91,12 @@ func DeleteProduct(id uint) {
 	connection.Delete(&models.Product{Id: id})
 }
 
+func DeleteCartProduct(id uint) {
+	connection := GetDatabase()
+	defer CloseDatabase(connection)
+	connection.Delete(&models.CartProduct{Id: id})
+}
+
 func UpdatePresentImage(img models.PresentImage) {
 	connection := GetDatabase()
 	defer CloseDatabase(connection)

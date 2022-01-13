@@ -127,7 +127,7 @@ func incrementProduct(update tgbotapi.Update, productId uint, isCart bool) {
 	}
 	database.EditUser(user)
 	if isCart {
-		showCart(user.ChatId, update.CallbackQuery.Message.MessageID, isCart)
+		showCart(user.ChatId, update.CallbackQuery.Message.MessageID, isCart, nil)
 		return
 	}
 	showProductDetails(update, productId, update.CallbackQuery.Message.MessageID, true, &user, false, -1)
@@ -140,15 +140,22 @@ func decrementProduct(update tgbotapi.Update, productId uint, isCart bool) {
 	if product != nil && product.Count > 0 {
 		product.Count--
 		if product.Count == 0 {
-			// Remove product from list
-			// user.Cart.RemoveProduct(productId)
-			database.ClearUserCart(user)
+			//Remove product from list
+			user.Cart.RemoveProduct(productId)
+			database.DeleteCartProduct(product.Id)
+			// database.ClearUserCart(user)
+		} else {
+			user.Cart.SetProduct(*product)
 		}
-		user.Cart.SetProduct(*product)
+		fmt.Println()
+		fmt.Println()
+		fmt.Println(len(user.Cart.Products))
+		fmt.Println()
+		fmt.Println()
 	}
 	database.EditUser(user)
 	if isCart {
-		showCart(user.ChatId, update.CallbackQuery.Message.MessageID, isCart)
+		showCart(user.ChatId, update.CallbackQuery.Message.MessageID, isCart, &user)
 		return
 	}
 	showProductDetails(update, productId, update.CallbackQuery.Message.MessageID, true, &user, false, -1)
@@ -347,9 +354,13 @@ func showProductDetails(update tgbotapi.Update, productId uint, messageId int, i
 	env.Bot.Send(file)
 }
 
-func showCart(chatId int64, messageId int, isEdit bool) {
+func showCart(chatId int64, messageId int, isEdit bool, usr *models.User) {
 	user := models.User{TgId: chatId}
-	user = database.FilterUser(user)
+	if usr != nil {
+		user = *usr
+	} else {
+		user = database.FilterUser(user)
+	}
 
 	txt := "***Корзинка***"
 	if user.Cart == nil || len(user.Cart.Products) <= 0 {
@@ -382,9 +393,10 @@ func showCart(chatId int64, messageId int, isEdit bool) {
 		msg.ReplyMarkup = markup
 		msg.ParseMode = "markdown"
 		env.Bot.Send(msg)
+		del := tgbotapi.NewDeleteMessage(chatId, messageId)
+		env.Bot.Send(del)
 	}
-	del := tgbotapi.NewDeleteMessage(chatId, messageId)
-	env.Bot.Send(del)
+
 }
 
 func SendNews(news models.News) {
@@ -576,7 +588,7 @@ func HandleBot() {
 			case "present":
 				sendAsPresent(update)
 			case "show-cart":
-				showCart(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, false)
+				showCart(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID, false, nil)
 			case "select-present":
 				productId, err := strconv.ParseUint(s[1], 10, 32)
 				if err != nil {
@@ -615,7 +627,7 @@ func HandleBot() {
 		case "☎️ Обратная связь":
 			showSettings(update.Message.Chat.ID)
 		case "🛒 Корзина":
-			showCart(update.Message.Chat.ID, -1, false)
+			showCart(update.Message.Chat.ID, -1, false, nil)
 		case "🎁 Открыть полученный подарок":
 			openRecievedGift(update)
 		case "📜 История заказов":
