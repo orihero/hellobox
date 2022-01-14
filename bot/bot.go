@@ -59,10 +59,16 @@ func hasContact(update tgbotapi.Update) bool {
 func showCategories(id int64) {
 	categories := database.GetCategories()
 	markup := tgbotapi.NewInlineKeyboardMarkup()
-	for i := 1; i < len(categories); i += 2 {
+	i := 1
+	for i = 1; i < len(categories); i += 2 {
+		count := len(database.GetProductsByCategory(categories[i-1].Id))
+		count2 := len(database.GetProductsByCategory(categories[i].Id))
 		markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(categories[i-1].Name, fmt.Sprintf("%s#%d", "category", categories[i-1].Id)),
-			tgbotapi.NewInlineKeyboardButtonData(categories[i].Name, fmt.Sprintf("%s#%d", "category", categories[i].Id))))
+			tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("%s (%d)", categories[i-1].Name, count), fmt.Sprintf("%s#%d", "category", categories[i-1].Id)),
+			tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("%s (%d)", categories[i].Name, count2), fmt.Sprintf("%s#%d", "category", categories[i].Id))))
+	}
+	if i <= len(categories) {
+		markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(categories[i-1].Name, fmt.Sprintf("%s#%d", "partner", categories[i-1].Id))))
 	}
 	message := tgbotapi.NewMessage(id, "Выберите нужную категорию ☺️ ")
 	message.ReplyMarkup = markup
@@ -79,7 +85,7 @@ func showProducts(chatId int64, categoryId uint, messageId int, partnerId uint) 
 	markup := tgbotapi.NewInlineKeyboardMarkup()
 	for _, el := range products {
 		markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData(el.Name, fmt.Sprintf("%s#%d", "product", el.Id)),
+			tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("%s %d сум", el.Name, el.Price), fmt.Sprintf("%s#%d", "product", el.Id)),
 		))
 	}
 	message := tgbotapi.NewMessage(chatId, "Выберите продукт")
@@ -92,10 +98,14 @@ func showProducts(chatId int64, categoryId uint, messageId int, partnerId uint) 
 func showPartner(chatId int64) {
 	partner := database.GetPartner()
 	markup := tgbotapi.NewInlineKeyboardMarkup()
-	for i := 1; i < len(partner); i += 2 {
+	i := 1
+	for i = 1; i < len(partner); i += 2 {
 		markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData(partner[i-1].Name, fmt.Sprintf("%s#%d", "partner", partner[i-1].Id)),
 			tgbotapi.NewInlineKeyboardButtonData(partner[i].Name, fmt.Sprintf("%s#%d", "partner", partner[i].Id))))
+	}
+	if i <= len(partner) {
+		markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(partner[i-1].Name, fmt.Sprintf("%s#%d", "partner", partner[i-1].Id))))
 	}
 	message := tgbotapi.NewMessage(chatId, "Выберите нужный продукт из списка партнеров")
 	message.ReplyMarkup = markup
@@ -422,7 +432,9 @@ func makeOrder(update tgbotapi.Update) {
 	for _, el := range user.Cart.Products {
 		items = append(items, tgbotapi.LabeledPrice{Label: el.Product.Name, Amount: int(el.Product.Price) * 100 * int(el.Count)})
 	}
-	in := tgbotapi.NewInvoice(update.CallbackQuery.Message.Chat.ID, "Hellobox", txt, user.Cart.Products[0].Token, "371317599:TEST:1638986618188", user.Cart.Products[0].Token, "UZS", items)
+	// token := "387026696:LIVE:61d30e670f5ef6a30739d8c3"
+	token := "371317599:TEST:1638986618188"
+	in := tgbotapi.NewInvoice(update.CallbackQuery.Message.Chat.ID, "Hellobox", txt, user.Cart.Products[0].Token, token, user.Cart.Products[0].Token, "UZS", items)
 	in.SuggestedTipAmounts = []int{}
 	pay := tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("💳 %d", user.Cart.CartTotal()), "")
 	pay.Pay = true
@@ -442,6 +454,9 @@ func openRecievedGift(update tgbotapi.Update) {
 }
 
 func showProductDetailsByToken(update tgbotapi.Update) {
+	if update.Message.Text == "" {
+		return
+	}
 	product := database.GetCartProductsByToken(update.Message.Text)
 	file := tgbotapi.NewPhoto(update.Message.Chat.ID, tgbotapi.FileURL(product.Product.ImageUrl))
 	file.ParseMode = "markdown"
@@ -632,6 +647,8 @@ func HandleBot() {
 			openRecievedGift(update)
 		case "📜 История заказов":
 			// orderHistory()
+		case "📱 Контакты":
+			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "По всем вопросам обращаться к оператору @Helloboxuz"))
 		}
 		showProductDetailsByToken(update)
 	}
