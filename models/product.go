@@ -24,7 +24,7 @@ type CartProduct struct {
 	Count       uint           `json:"count"`
 	CartId      uint           `json:"cart_id"`
 	Token       string         `json:"token"`
-	Utilized    bool           `json:"utilized"`
+	Utilized    int            `json:"utilized"`
 	OptionIndex uint           `json:"option_index"`
 	IsPresent   bool           `json:"is_present"`
 }

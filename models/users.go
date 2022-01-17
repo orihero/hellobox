@@ -19,4 +19,5 @@ type User struct {
 	CartId    uint           `json:"cart_id"`
 	ChatId    int64          `json:"chat_id"`
 	TgId      int64          `json:"user_id"`
+	PartnerId uint           `json:"partner_id"`
 }

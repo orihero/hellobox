@@ -6,6 +6,7 @@ import (
 )
 
 var (
-	Bot    *tgbotapi.BotAPI
-	Router *mux.Router
+	Bot        *tgbotapi.BotAPI
+	PartnerBot *tgbotapi.BotAPI
+	Router     *mux.Router
 )
