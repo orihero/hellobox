@@ -418,6 +418,16 @@ func SendNews(news models.News) {
 		body, _ := ioutil.ReadFile(fmt.Sprintf("./public/uploads/%s", last))
 		file := tgbotapi.NewPhoto(el.ChatId, tgbotapi.FileBytes{Bytes: body})
 		file.Caption = news.Description
+		markup := tgbotapi.InlineKeyboardMarkup{}
+		if news.ProductId != 0 {
+			markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(news.Product.Name, fmt.Sprintf("%s#%d", "product", news.ProductId))))
+		}
+		if news.PartnerId != 0 && news.ProductId == 0 {
+			markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(news.Partner.Name, fmt.Sprintf("%s#%d", "partner", news.PartnerId))))
+		}
+		if len(markup.InlineKeyboard) > 0 {
+			file.ReplyMarkup = markup
+		}
 		env.Bot.Send(file)
 	}
 }

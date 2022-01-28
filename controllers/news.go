@@ -30,6 +30,10 @@ func CreateNews(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(error)
 		return
 	}
+	p := database.GetPartnerById(news.PartnerId)
+	pr := database.GetSingleProduct(news.ProductId)
+	news.Product = &pr
+	news.Partner = p
 	bot.SendNews(news)
 	database.CreateNews(news)
 	w.Header().Set("Content-Type", "application/json")

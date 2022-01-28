@@ -27,3 +27,11 @@ func DeleteNews(id uint) {
 	defer CloseDatabase(connection)
 	connection.Delete(&models.News{Id: id})
 }
+
+func GetNewsByid(id uint) models.News {
+	connection := GetDatabase()
+	defer CloseDatabase(connection)
+	var news models.News
+	connection.Where(models.News{Id: id}).Preload("Partner").Preload("Product").First(&news)
+	return news
+}

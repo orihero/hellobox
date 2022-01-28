@@ -10,6 +10,14 @@ func GetPartner() []models.Partner {
 	return partner
 }
 
+func GetPartnerById(id uint) models.Partner {
+	connection := GetDatabase()
+	defer CloseDatabase(connection)
+	var partner models.Partner
+	connection.Where(models.Partner{Id: id}).First(&partner)
+	return partner
+}
+
 func CreatePartner(partner models.Partner) {
 	connection := GetDatabase()
 	defer CloseDatabase(connection)
