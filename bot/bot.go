@@ -143,8 +143,10 @@ func incrementProduct(update tgbotapi.Update, productId uint, isCart bool) {
 			user.Cart = &models.Cart{}
 		}
 		u, _ := uuid.NewV4()
+		s := u.String()
+		token := s[len(s)-12 : len(s)-1]
 		realProduct := database.GetSingleProduct(productId)
-		user.Cart.Products = append(user.Cart.Products, models.CartProduct{ProductId: realProduct.Id, Product: realProduct, CartId: user.CartId, Count: 1, Token: u.String(), OptionIndex: 0})
+		user.Cart.Products = append(user.Cart.Products, models.CartProduct{ProductId: realProduct.Id, Product: realProduct, CartId: user.CartId, Count: 1, Token: token, OptionIndex: 0})
 	}
 	database.EditUser(user)
 	if isCart {
@@ -541,8 +543,8 @@ func HandleBot() {
 				}
 				file.Caption = text
 				env.Bot.Send(file)
-				msg := tgbotapi.NewMessage(update.PreCheckoutQuery.From.ID, fmt.Sprintf("⏰Период активации: 12.03.21-12.04.21\n🔑Код активации:  ***%s***\n___*Не показывайте код другим людям, его можете активировать только вы или знающий его человек;\n*Сервис пока работает только на территории города Ташкента.___", el.Token))
-				msg.ParseMode = "markdown"
+				msg := tgbotapi.NewMessage(update.PreCheckoutQuery.From.ID, fmt.Sprintf("⏰Период активации: 12\\.03\\.21\\-12\\.04\\.21\n🔑Код активации:  ||***%s***||\n_\\*Не показывайте код другим людям, его можете активировать только вы или знающий его человек;\n\\*Сервис пока работает только на территории города Ташкента_", el.Token))
+				msg.ParseMode = "MarkdownV2"
 				env.Bot.Send(msg)
 			}
 			database.ClearUserCart(user)
