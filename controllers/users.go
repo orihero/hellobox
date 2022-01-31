@@ -13,6 +13,9 @@ import (
 
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 	user := database.GetUsers()
+	if r.URL.Query().Has("fromPartner") {
+		user = database.GetPartnerUsers()
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }

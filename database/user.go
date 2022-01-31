@@ -12,6 +12,14 @@ func GetUsers() []models.User {
 	return users
 }
 
+func GetPartnerUsers() []models.User {
+	connection := GetDatabase()
+	defer CloseDatabase(connection)
+	var users []models.User
+	connection.Where(models.User{FromPartner: 1}).Find(&users)
+	return users
+}
+
 func GetUser(userId uint) models.User {
 	connection := GetDatabase()
 	defer CloseDatabase(connection)

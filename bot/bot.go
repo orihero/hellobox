@@ -38,19 +38,30 @@ func sendMenu(id int64) {
 	env.Bot.Send(message)
 }
 
-func hasContact(update tgbotapi.Update) bool {
+func hasContact(update tgbotapi.Update, fromPartner bool) bool {
 	if update.Message.Contact != nil {
-		database.CreateUser(models.User{
+		user := models.User{
 			Phone:     update.Message.Contact.PhoneNumber,
 			Firstname: update.Message.Contact.FirstName,
 			Lastname:  update.Message.Contact.LastName,
 			TgId:      update.Message.From.ID,
 			ChatId:    update.Message.Chat.ID,
-		})
+		}
+		if fromPartner {
+			user.FromPartner = 1
+		}
+		database.CreateUser(user)
 		// if err != nil {
 		// 	env.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "Вы "))
 		// }
-		sendMenu(update.Message.Chat.ID)
+		if !fromPartner {
+			sendMenu(update.Message.Chat.ID)
+		} else {
+			m := tgbotapi.NewMessage(update.Message.Chat.ID, "Now ask the admin to bind a partner to your account your id is: "+fmt.Sprint(update.Message.From.ID))
+			m.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
+
+			env.PartnerBot.Send(m)
+		}
 		return true
 	}
 	return false
@@ -628,7 +639,7 @@ func HandleBot() {
 			continue
 		}
 
-		if hasContact(update) {
+		if hasContact(update, false) {
 			continue
 		}
 

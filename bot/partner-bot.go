@@ -95,7 +95,15 @@ func HandlePartnerBot() {
 
 	updates := bot.GetUpdatesChan(updateConfig)
 	for update := range updates {
+		if hasContact(update, true) {
+			continue
+		}
 		if update.CallbackQuery != nil {
+			user := database.FilterUser(models.User{ChatId: update.CallbackQuery.From.ID})
+			if user.Id == 0 || user.PartnerId == 0 {
+				env.Bot.Send(tgbotapi.NewCallbackWithAlert(update.CallbackQuery.ID, "You are not authorized to use this bot"))
+				continue
+			}
 			s := strings.Split(update.CallbackQuery.Data, "#")
 			switch s[0] {
 			case "activate":
@@ -122,9 +130,24 @@ func HandlePartnerBot() {
 			continue
 		}
 		switch update.Message.Text {
+
 		case "/start":
-			message := tgbotapi.NewMessage(update.Message.Chat.ID, "Welcome")
+			reply := tgbotapi.NewReplyKeyboard(
+				tgbotapi.NewKeyboardButtonRow(
+					tgbotapi.NewKeyboardButtonContact("Отправить ваши контакы"),
+				),
+			)
+			message := tgbotapi.NewMessage(update.Message.Chat.ID, "Чтобы начать отправте ваши контакты")
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Отправляя ваши контакты вы соглашаетесь с пользовательским соглашением \"Hellobox\":https://hellobox.uz/privacy-policy\n___*Сервис пока работает только на территории города Ташкента___")
+			message.ReplyMarkup = reply
+			msg.ParseMode = "markdown"
 			bot.Send(message)
+			bot.Send(msg)
+			continue
+		}
+		user := database.FilterUser(models.User{ChatId: update.Message.From.ID})
+		if user.Id == 0 || user.PartnerId == 0 {
+			env.PartnerBot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "You are not authorized to use this bot"))
 			continue
 		}
 		checkProduct(update.Message.Chat.ID, update.Message.From.ID, update.Message.Text)
