@@ -11,20 +11,16 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-var counts map[int64]struct {
+type PartnerCounts struct {
 	Count     uint
 	ProductId uint
-} = make(map[int64]struct {
-	Count     uint
-	ProductId uint
-})
+}
+
+var counts map[int64]PartnerCounts = make(map[int64]PartnerCounts)
 
 func incrementActiveCount(userId int64, max int) bool {
-	if val, ok := counts[userId]; ok {
-		counts[userId] = struct {
-			Count     uint
-			ProductId uint
-		}{
+	if val, ok := counts[userId]; ok && val.Count+1 <= uint(max) {
+		counts[userId] = PartnerCounts{
 			ProductId: val.ProductId,
 			Count:     val.Count + 1,
 		}
@@ -34,8 +30,16 @@ func incrementActiveCount(userId int64, max int) bool {
 	}
 }
 
-func decrementActiveCount(productId uint) {
-
+func decrementActiveCount(userId int64, max int) bool {
+	if val, ok := counts[userId]; ok && val.Count-1 > 0 {
+		counts[userId] = PartnerCounts{
+			ProductId: val.ProductId,
+			Count:     val.Count - 1,
+		}
+		return true
+	} else {
+		return false
+	}
 }
 
 func checkProduct(chatId int64, userId int64, text string) {
@@ -49,21 +53,15 @@ func checkProduct(chatId int64, userId int64, text string) {
 		}
 		count := 0
 		if val, ok := counts[userId]; ok {
-			if product.Id == val.ProductId {
+			if product.ProductId == val.ProductId {
 				count = int(val.Count)
 			} else {
 				// When user picks new product
-				counts[userId] = struct {
-					Count     uint
-					ProductId uint
-				}{Count: uint(count), ProductId: product.ProductId}
+				counts[userId] = PartnerCounts{Count: uint(count), ProductId: product.ProductId}
 			}
 		} else {
 			// When user types new product
-			counts[userId] = struct {
-				Count     uint
-				ProductId uint
-			}{Count: 0, ProductId: product.ProductId}
+			counts[userId] = PartnerCounts{Count: 0, ProductId: product.ProductId}
 		}
 		reply := tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
@@ -72,7 +70,7 @@ func checkProduct(chatId int64, userId int64, text string) {
 				tgbotapi.NewInlineKeyboardButtonData("➕", fmt.Sprintf("plus#%d", product.Id)),
 			),
 			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("✅ Aктивировать", fmt.Sprintf("activate#%d", product.ProductId))))
+				tgbotapi.NewInlineKeyboardButtonData("✅ Aктивировать", fmt.Sprintf("activate#%d", product.Id))))
 		msg := tgbotapi.NewMessage(chatId, fmt.Sprintf("Продукт: %s\nКоличество: %d", product.Product.Name, product.Count))
 		msg.ReplyMarkup = reply
 		env.PartnerBot.Send(msg)
@@ -101,6 +99,7 @@ func HandlePartnerBot() {
 		if update.CallbackQuery != nil {
 			user := database.FilterUser(models.User{ChatId: update.CallbackQuery.From.ID})
 			if user.Id == 0 || user.PartnerId == 0 {
+				//TODO check if the product on this partner
 				env.Bot.Send(tgbotapi.NewCallbackWithAlert(update.CallbackQuery.ID, "You are not authorized to use this bot"))
 				continue
 			}
@@ -109,24 +108,50 @@ func HandlePartnerBot() {
 			case "activate":
 				id, _ := strconv.Atoi(s[1])
 				product := database.GetCartProductsById(uint(id))
-				product.Utilized = 1
+				if product.Product.PartnerId != user.PartnerId {
+					env.Bot.Send(tgbotapi.NewCallbackWithAlert(update.CallbackQuery.ID, "You are not authorized to utilize this product"))
+					continue
+				}
+				userId := update.CallbackQuery.From.ID
+				if val, ok := counts[userId]; ok {
+					if val.Count == product.Count {
+						product.Utilized = 1
+						product.Count = 0
+					} else {
+						product.Count = product.Count - val.Count
+					}
+				}
 				database.EditCartProduct(*product)
 				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Success! Product has been utilized!")
 				bot.Send(msg)
 			case "plus":
 				id, _ := strconv.Atoi(s[1])
 				product := database.GetCartProductsById(uint(id))
+				if product.Product.PartnerId != user.PartnerId {
+					env.Bot.Send(tgbotapi.NewCallbackWithAlert(update.CallbackQuery.ID, "You are not authorized to utilize this product"))
+					continue
+				}
 				ok := incrementActiveCount(update.CallbackQuery.From.ID, int(product.Count))
-				if !ok {
-					bot.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.From.ID, update.CallbackQuery.Message.MessageID))
-				} else {
+				if ok {
 					checkProduct(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.From.ID, product.Token)
+					bot.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.From.ID, update.CallbackQuery.Message.MessageID))
 				}
 			case "minus":
 				id, _ := strconv.Atoi(s[1])
 				product := database.GetCartProductsById(uint(id))
-				decrementActiveCount(product.Id)
+				if product.Product.PartnerId != user.PartnerId {
+					env.Bot.Send(tgbotapi.NewCallbackWithAlert(update.CallbackQuery.ID, "You are not authorized to utilize this product"))
+					continue
+				}
+				ok := decrementActiveCount(update.CallbackQuery.From.ID, int(product.Count))
+				if ok {
+					checkProduct(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.From.ID, product.Token)
+					bot.Send(tgbotapi.NewDeleteMessage(update.CallbackQuery.From.ID, update.CallbackQuery.Message.MessageID))
+				}
 			}
+			continue
+		}
+		if update.Message == nil || update.Message.Text == "" {
 			continue
 		}
 		switch update.Message.Text {

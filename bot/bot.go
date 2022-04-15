@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	uuid "github.com/nu7hatch/gouuid"
@@ -20,18 +21,18 @@ func sendMenu(id int64) {
 			tgbotapi.KeyboardButton{Text: "🛒 Корзина"},
 		),
 		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.KeyboardButton{Text: "👥 Партнери"},
+			tgbotapi.KeyboardButton{Text: "🌟 Партнери"},
 			tgbotapi.KeyboardButton{Text: "🔥 Топ продаж"},
 		),
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.KeyboardButton{Text: "📱 Контакты"},
-			tgbotapi.KeyboardButton{Text: "📆 История заказов"},
+			tgbotapi.KeyboardButton{Text: "🔑 Проверить продукт"},
 		),
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.KeyboardButton{Text: "🎁 Открыть полученный подарок"},
 		),
 	)
-	message := tgbotapi.NewMessage(id, "Кто то сегодня обрадуется 😍")
+	message := tgbotapi.NewMessage(id, "Кто-то сегодня обрадуется 😍")
 	message.ReplyMarkup = reply
 	// del := tgbotapi.NewDeleteMessage(id, int(messageId))
 	// env.Bot.Send(del)
@@ -39,6 +40,9 @@ func sendMenu(id int64) {
 }
 
 func hasContact(update tgbotapi.Update, fromPartner bool) bool {
+	if update.Message == nil {
+		return false
+	}
 	if update.Message.Contact != nil {
 		user := models.User{
 			Phone:     update.Message.Contact.PhoneNumber,
@@ -192,7 +196,7 @@ func showProductDetails(update tgbotapi.Update, productId uint, messageId int, i
 		*user = database.FilterUser(*user)
 	}
 	if showOptions && (user.Cart == nil || len(user.Cart.Products) <= 0) {
-		env.Bot.Send(tgbotapi.NewCallbackWithAlert(update.CallbackQuery.ID, "Пожалуйста, сначала выберите хотя бы один продукт"))
+		env.Bot.Send(tgbotapi.NewCallbackWithAlert(update.CallbackQuery.ID, "Пожалуйста укажите количество, чтобы продолжить."))
 		return
 	}
 	count := 0
@@ -405,8 +409,11 @@ func showCart(chatId int64, messageId int, isEdit bool, usr *models.User) {
 		markup.InlineKeyboard = append(markup.InlineKeyboard, row)
 		txt = fmt.Sprintf("%s\n***%s***\n└  %s  %d x %d = %d", txt, el.Product.Name, el.Product.Name, el.Count, el.Product.Price, el.Product.Price*el.Count)
 	}
+	percent := database.GetProfitPercent()
 	markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("✅ Оформить заказ", "order")))
-	txt = fmt.Sprintf("%s\n\nВсего:%d сум", txt, user.Cart.CartTotal())
+	total := float32(user.Cart.CartTotal())
+	commission := float32(user.Cart.CartTotal()) * float32(float32(percent.Percent)/100.0)
+	txt = fmt.Sprintf("%s\n\nКомиссия: %d%%\n\nВсего: %0.0f сум", txt, percent.Percent, total+commission)
 	if isEdit {
 		msg := tgbotapi.NewEditMessageTextAndMarkup(chatId, messageId, txt, markup)
 		msg.ParseMode = "markdown"
@@ -455,11 +462,16 @@ func makeOrder(update tgbotapi.Update) {
 	for _, el := range user.Cart.Products {
 		items = append(items, tgbotapi.LabeledPrice{Label: el.Product.Name, Amount: int(el.Product.Price) * 100 * int(el.Count)})
 	}
+	percent := database.GetProfitPercent()
+	total := float32(user.Cart.CartTotal())
+	commission := float32(user.Cart.CartTotal()) * float32(float32(percent.Percent))
+	println(commission)
+	items = append(items, tgbotapi.LabeledPrice{Label: fmt.Sprintf("Комиссия: %d%%", percent.Percent), Amount: int(commission)})
 	// token := "387026696:LIVE:61d30e670f5ef6a30739d8c3"
 	token := "371317599:TEST:1638986618188"
 	in := tgbotapi.NewInvoice(update.CallbackQuery.Message.Chat.ID, "Hellobox", txt, user.Cart.Products[0].Token, token, user.Cart.Products[0].Token, "UZS", items)
 	in.SuggestedTipAmounts = []int{}
-	pay := tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("💳 %d", user.Cart.CartTotal()), "")
+	pay := tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("💳 %0.0f", total+(commission/100.0)), "")
 	pay.Pay = true
 	in.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(pay))
 	del := tgbotapi.NewDeleteMessage(update.CallbackQuery.From.ID, int(update.CallbackQuery.Message.MessageID))
@@ -481,11 +493,28 @@ func showProductDetailsByToken(update tgbotapi.Update) {
 		return
 	}
 	product := database.GetCartProductsByToken(update.Message.Text)
+	if product.Id == 0 {
+		env.Bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "❌ Недействителен"))
+		return
+	}
 	file := tgbotapi.NewPhoto(update.Message.Chat.ID, tgbotapi.FileURL(product.Product.ImageUrl))
 	file.ParseMode = "markdown"
 	text := fmt.Sprintf("***%s***\n%s", product.Product.Name, product.Product.Description)
 	file.Caption = text
 	env.Bot.Send(file)
+}
+
+func showTopProducts(update tgbotapi.Update) {
+	products := database.GetTopProducts()
+	markup := tgbotapi.NewInlineKeyboardMarkup()
+	for _, el := range products {
+		markup.InlineKeyboard = append(markup.InlineKeyboard, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("%s %d сум", el.Name, el.Price), fmt.Sprintf("%s#%d", "product", el.Id)),
+		))
+	}
+	message := tgbotapi.NewMessage(update.Message.Chat.ID, "Выберите продукт")
+	message.ReplyMarkup = markup
+	env.Bot.Send(message)
 }
 
 func orderHistory(update tgbotapi.Update) {
@@ -535,17 +564,23 @@ func HandleBot() {
 					}
 				}
 				//Sending photo
-				file := tgbotapi.NewPhoto(user.ChatId, tgbotapi.FileURL(url))
-				file.ParseMode = "markdown"
+				file := tgbotapi.NewPhoto(user.TgId, tgbotapi.FileURL(url))
+				file.ParseMode = "MarkdownV2"
 				text := fmt.Sprintf("***%s***\n%s", el.Product.Name, el.Product.Description)
 				if el.OptionIndex == 1000 {
 					text = fmt.Sprintf("***Вам отправили подарок 🎁***\nЧтобы его открыть переходите  по ссылке в Телеграм бот «Hellobox (https://t.me/helloboxbot)».И напишите «Код активации» в раздел: \n***«🎁 Открыть полученный подарок».***")
 				}
-				file.Caption = text
+
+				t := time.Now()
+				from := t.Format("02.01.2006")
+				t = t.AddDate(0, 0, int(el.Product.ExpiresIn))
+				to := t.Format("02.01.2006")
+				txt := fmt.Sprintf("⏰Период активации: %s-%s\n 🐼 Количество:%d\n🔑Код активации:  ||***%s***||\n_\\*Не показывайте код другим людям, его можете активировать только вы или знающий его человек;\n\\*Сервис пока работает только на территории города Ташкента_", from, to, el.Count, el.Token)
+				file.Caption = text + "\n" + txt
 				env.Bot.Send(file)
-				msg := tgbotapi.NewMessage(update.PreCheckoutQuery.From.ID, fmt.Sprintf("⏰Период активации: 12\\.03\\.21\\-12\\.04\\.21\n🔑Код активации:  ||***%s***||\n_\\*Не показывайте код другим людям, его можете активировать только вы или знающий его человек;\n\\*Сервис пока работает только на территории города Ташкента_", el.Token))
-				msg.ParseMode = "MarkdownV2"
-				env.Bot.Send(msg)
+				// msg := tgbotapi.NewMessage(update.PreCheckoutQuery.From.ID, )
+				// msg.ParseMode = "MarkdownV2"
+				// env.Bot.Send(msg)
 			}
 			database.ClearUserCart(user)
 			continue
@@ -660,7 +695,7 @@ func HandleBot() {
 			bot.Send(msg)
 		case "🛍 Каталог":
 			showCategories(update.Message.Chat.ID)
-		case "👥 Партнери":
+		case "🌟 Партнери":
 			showPartner(update.Message.Chat.ID)
 		case "☎️ Обратная связь":
 			showSettings(update.Message.Chat.ID)
@@ -668,10 +703,14 @@ func HandleBot() {
 			showCart(update.Message.Chat.ID, -1, false, nil)
 		case "🎁 Открыть полученный подарок":
 			openRecievedGift(update)
-		case "📜 История заказов":
+		case "🔑 Проверить продукт":
 			// orderHistory()
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Пожалуйста напишите код активации, чтобы проверить статус продукта")
+			env.Bot.Send(msg)
 		case "📱 Контакты":
 			bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, "По всем вопросам обращаться к оператору @Helloboxuz"))
+		case "🔥 Топ продаж":
+			showTopProducts(update)
 		}
 		showProductDetailsByToken(update)
 	}

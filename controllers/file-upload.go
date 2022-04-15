@@ -78,9 +78,31 @@ func UpdatePresentImage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(presentImage)
 }
+
 func GetPresentImage(w http.ResponseWriter, r *http.Request) {
 
 	presentImage := database.GetPresentImage()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(presentImage)
+}
+
+func GetProfitPercent(w http.ResponseWriter, r *http.Request) {
+	profitPercent := database.GetProfitPercent()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(profitPercent)
+}
+
+func UpdateProfitPercent(w http.ResponseWriter, r *http.Request) {
+	var profitPercent models.ProfitPercent
+	err := json.NewDecoder(r.Body).Decode(&profitPercent)
+	if err != nil {
+		error := models.Error{IsError: true, Message: "Unproccessable entity"}
+		w.Header().Set("Content-type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(error)
+		return
+	}
+	database.UpdateProfitPercent(profitPercent)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(profitPercent)
 }

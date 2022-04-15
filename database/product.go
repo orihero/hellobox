@@ -25,6 +25,18 @@ func GetProductsByPartner(partnerId uint) []models.Product {
 	defer CloseDatabase(connection)
 	var products []models.Product
 	connection.Where(&models.Product{PartnerId: partnerId}).Preload("Partner").Preload("Options").Preload("Category").Find(&products)
+	println("---------------------------")
+	println(partnerId)
+	println(products)
+	println("---------------------------")
+	return products
+}
+
+func GetTopProducts() []models.Product {
+	connection := GetDatabase()
+	defer CloseDatabase(connection)
+	var products []models.Product
+	connection.Where(&models.Product{IsTop: 1}).Preload("Partner").Preload("Options").Preload("Category").Find(&products)
 	return products
 }
 
@@ -103,21 +115,30 @@ func UpdatePresentImage(img models.PresentImage) {
 	if connection.Model(&img).Where("id = ?", img.Id).Updates(&img).RowsAffected == 0 {
 		connection.Create(&img)
 	}
-	// // update only set name=nick
-	// if err := connection.Model(&img).Where("id = ?", img.Id).Update("image_url", img.ImageUrl).Error; err != nil {
-	// 	// always handle error like this, cause errors maybe happened when connection failed or something.
-	// 	// record not found...
-	// 	if err != nil {
-	// 		connection.Create(&img) // create new record from newUser
-	// 	}
-	// }
 }
+
 func GetPresentImage() models.PresentImage {
 	connection := GetDatabase()
 	defer CloseDatabase(connection)
 	var p models.PresentImage
 	connection.First(&p)
 	return p
+}
+
+func GetProfitPercent() models.ProfitPercent {
+	connection := GetDatabase()
+	defer CloseDatabase(connection)
+	var p models.ProfitPercent
+	connection.First(&p)
+	return p
+}
+
+func UpdateProfitPercent(profit models.ProfitPercent) {
+	connection := GetDatabase()
+	defer CloseDatabase(connection)
+	if connection.Model(&profit).Where("id = ?", profit.Id).Updates(&profit).RowsAffected == 0 {
+		connection.Create(&profit)
+	}
 }
 
 //  func GetProductsbyPartner (id models.Partner){

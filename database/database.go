@@ -39,6 +39,7 @@ func InitialMigration() {
 	_ = connection.AutoMigrate(models.Option{})
 	_ = connection.AutoMigrate(models.Order{})
 	_ = connection.AutoMigrate(models.PresentImage{})
+	_ = connection.AutoMigrate(models.ProfitPercent{})
 }
 
 //closes database connection

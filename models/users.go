@@ -20,5 +20,5 @@ type User struct {
 	ChatId      int64          `json:"chat_id"`
 	TgId        int64          `json:"user_id"`
 	PartnerId   uint           `json:"partner_id"`
-	FromPartner uint
+	FromPartner uint           `json:"from_partner"`
 }

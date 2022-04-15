@@ -40,6 +40,7 @@ func EditProduct(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(error)
+		print(err)
 		return
 	}
 	database.EditProduct(product)

@@ -54,6 +54,7 @@ type Product struct {
 	ProfitPercent uint           `json:"profit_percent"`
 	Options       []Option       `json:"options"`
 	PartnerId     uint           `json:"partner_id"`
+	IsTop         uint           `json:"is_top"`
 }
 
 type Category struct {

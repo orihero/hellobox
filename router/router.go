@@ -46,11 +46,14 @@ func CreateRouter() {
 	prefix.HandleFunc("/partner", controller.EditPartner).Methods("PUT")
 	prefix.HandleFunc("/partner", controller.CreatePartner).Methods("POST")
 
-	//******
+	//******SETTINGS
 	prefix.HandleFunc("/settings", controller.GetSettings).Methods("GET")
 	prefix.HandleFunc("/settings/{id}", controller.DeleteSettings).Methods("DELETE")
 	prefix.HandleFunc("/settings", controller.EditSettings).Methods("PUT")
 	prefix.HandleFunc("/settings", controller.CreateSettings).Methods("POST")
+
+	prefix.HandleFunc("/profit-percent", controller.UpdateProfitPercent).Methods("PUT")
+	prefix.HandleFunc("/profit-percent", controller.GetProfitPercent).Methods("GET")
 
 	//*******UPLOAD/DOWNLOAD
 	prefix.HandleFunc("/file-upload", controller.MultipleFileUpload).Methods("POST")
