@@ -43,4 +43,7 @@ export let requests = {
     createCategory: (credentails) => axios.post(`${url}/category`, credentails),
     editCategory: (credentails) => axios.put(`${url}/category`, credentails),
   },
+  order: {
+    getOrders: () => axios.get(`${url}/orders`),
+  },
 };
