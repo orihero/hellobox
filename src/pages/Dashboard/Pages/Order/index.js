@@ -1,22 +1,10 @@
 import React, { useEffect, useState } from "react";
-import {
-  Container,
-  ProdoctsBox,
-  Table,
-  Td,
-  Tr,
-  Icon,
-  IconBox,
-  Wrapper,
-  Sold,
-  Activated,
-  Tdbox,
-  ProdoctsContainer,
-  ImgBox,
-  Img,
-} from "./style";
-import Image from "../../../../assests/6595158_preview1.png";
 import { requests } from "../../../../api/requests";
+import {
+  Activated, Container, Icon,
+  IconBox, ProdoctsBox, ProdoctsContainer, Sold, Table,
+  Td, Tdbox, Tr, Wrapper
+} from "./style";
 
 function OrderPage() {
   const [orderIndex, setOrderIndex] = useState(-1);
