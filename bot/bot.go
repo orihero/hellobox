@@ -469,7 +469,7 @@ func makeOrder(update tgbotapi.Update) {
 	println(commission)
 	items = append(items, tgbotapi.LabeledPrice{Label: fmt.Sprintf("Комиссия: %d%%", percent.Percent), Amount: int(commission)})
 	// token := "387026696:LIVE:61d30e670f5ef6a30739d8c3"
-	token := "371317599:TEST:1638986618188"
+	token := "387026696:LIVE:61d30e670f5ef6a30739d8c3 "
 	in := tgbotapi.NewInvoice(update.CallbackQuery.Message.Chat.ID, "Hellobox", txt, user.Cart.Products[0].Token, token, user.Cart.Products[0].Token, "UZS", items)
 	in.SuggestedTipAmounts = []int{}
 	pay := tgbotapi.NewInlineKeyboardButtonData(fmt.Sprintf("💳 %0.0f", total+(commission/100.0)), "")
