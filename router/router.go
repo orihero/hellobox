@@ -34,6 +34,9 @@ func CreateRouter() {
 	prefix.HandleFunc("/user", controller.EditUser).Methods("PUT")
 	prefix.HandleFunc("/users", controller.CreateUser).Methods("POST")
 
+	//******ORDERS
+	prefix.HandleFunc("/orders", controller.GetOrders).Methods("GET")
+
 	//******NEWS
 	prefix.HandleFunc("/news", controller.GetNews).Methods("GET")
 	prefix.HandleFunc("/news/{id}", controller.DeleteNews).Methods("DELETE")

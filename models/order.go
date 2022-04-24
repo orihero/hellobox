@@ -14,4 +14,5 @@ type Order struct {
 	CartId    uint           `json:"cart_id"`
 	Cart      Cart           `json:"cart"`
 	UserId    uint           `json:"user_id"`
+	User      User           `json:"user"`
 }

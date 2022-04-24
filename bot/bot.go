@@ -455,7 +455,8 @@ func SendNews(news models.News) {
 func makeOrder(update tgbotapi.Update) {
 	user := database.FilterUser(models.User{TgId: update.CallbackQuery.From.ID})
 	database.CreateOrder(models.Order{
-		Cart: *user.Cart,
+		Cart:   *user.Cart,
+		UserId: user.Id,
 	})
 	items := []tgbotapi.LabeledPrice{}
 	txt := "Оплата"
